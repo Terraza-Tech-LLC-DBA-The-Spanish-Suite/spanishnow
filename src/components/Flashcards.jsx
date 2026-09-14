@@ -56,7 +56,6 @@ const Flashcards = ({ decks }) => {
         TOPIC_ORDER.forEach(topic => {
             topics[topic] = [];
         });
-
         for (const deckId in activeDecks) {
             const deck = activeDecks[deckId];
             const topic = deck.topic || 'General';
@@ -71,7 +70,12 @@ const Flashcards = ({ decks }) => {
                 if (!matchesTitle && !matchesTopic) continue;
             }
             topics[topic].push({ ...deck, id: deckId });
-            topics[topic].sort((a, b) => (a.level || 0) - (b.level || 0));
+            topics[topic].sort((a, b) => {
+                const orderA = Number(a.order ?? a.level ?? 99);
+                const orderB = Number(b.order ?? b.level ?? 99);
+                if (orderA !== orderB) return orderA - orderB;
+                return (a.title || '').localeCompare(b.title || '');
+            });
         }
         return topics;
     }, [activeDecks, searchQuery]);
@@ -94,7 +98,7 @@ const Flashcards = ({ decks }) => {
     }, [activeDecks, deckProgress]);
 
     const handleDeckClick = async (lessonCards, deck, mode) => {
-        navigate(`/deck/${deck.id}`, { state: { lessonCards, deckId: deck.id, mode } });
+        navigate(`/decks/${deck.id}`, { state: { lessonCards, deckId: deck.id, mode } });
     };
 
     const handleAddDeckToSRS = async (deck) => {
@@ -266,10 +270,11 @@ const Flashcards = ({ decks }) => {
                                         return (
                                             <div
                                                 key={deck.id}
-                                                className={`group relative flex flex-col justify-between border-2 rounded-xl p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${isCompleted
+                                                className={`group relative flex flex-col justify-between border-2 rounded-xl p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${isCompleted
                                                     ? 'border-emerald-400 dark:border-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20'
                                                     : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/80 hover:border-custom-400 dark:hover:border-custom-500'
                                                     }`}
+                                                onClick={() => handleDeckClick(lessonCards, deck, 'flashcards')}
                                             >
                                                 <div>
                                                     {/* Card Title & SRS Action */}
@@ -319,27 +324,6 @@ const Flashcards = ({ decks }) => {
                                                             style={{ width: `${score}%` }}
                                                         ></div>
                                                     </div>
-                                                </div>
-
-                                                {/* Action Buttons Row */}
-                                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                                    {/* Flashcards Learn Button */}
-                                                    <button
-                                                        onClick={() => handleDeckClick(lessonCards, deck, 'flashcards')}
-                                                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-custom-50 dark:bg-gray-700 text-custom-700 dark:text-custom-300 font-semibold text-xs hover:bg-custom-600 hover:text-white dark:hover:bg-custom-600 dark:hover:text-white transition-all shadow-xs active:scale-95"
-                                                    >
-                                                        <FaBookOpen className="text-sm" />
-                                                        <span>Flashcards</span>
-                                                    </button>
-
-                                                    {/* Quiz Test Button */}
-                                                    <button
-                                                        onClick={() => handleDeckClick(lessonCards, deck, 'test')}
-                                                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-orange-50 dark:bg-gray-700 text-orange-700 dark:text-orange-300 font-semibold text-xs hover:bg-orange-500 hover:text-white dark:hover:bg-orange-500 dark:hover:text-white transition-all shadow-xs active:scale-95"
-                                                    >
-                                                        <FaBrain className="text-sm" />
-                                                        <span>Practice Quiz</span>
-                                                    </button>
                                                 </div>
                                             </div>
                                         );

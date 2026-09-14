@@ -38,7 +38,7 @@ const AppLayout = () => {
     const location = useLocation(); // Hook to get the current URL path
 
     // Define routes that require decks to be loaded
-    const deckRoutes = ['/', '/flashcards', '/create', '/review', '/listen', '/deck', '/edit', '/admin', '/lesson', '/journey'];
+    const deckRoutes = ['/', '/decks', '/create', '/review', '/listen', '/edit', '/admin', '/lesson', '/journey'];
     const shouldLoadDecks = deckRoutes.some(route => route === '/' ? location.pathname === '/' : location.pathname.startsWith(route));
 
     const isSpeakActive = location.pathname.includes('/speakCompanion/session');
@@ -75,9 +75,9 @@ const AppLayout = () => {
                             <Route path="/speakCompanion" element={<SpeakCompanion />} />
                             <Route path="/speakCompanion/:scenarioId" element={<SpeakCompanion />} />
                             <Route path="/speakCompanion/session/:scenarioId/:roleIndex" element={<SpeakCompanion />} />
-                            <Route path="/deck/:deckId" element={<SessionManager />} />
                             <Route path="/booking" element={<Booking />} />
-                            <Route path="/flashcards" element={<Flashcards decks={decks} />} />
+                            {/* <Route path="/decks" element={<Flashcards decks={decks} />} /> */}
+                            {/* <Route path="/decks/:deckId" element={<SessionManager />} /> */}
                             {/* --- NEW: Admin Route --- */}
                             <Route path="/admin" element={<TopicManager decks={decks} />} />
                             <Route path="*" element={<Navigate to="/" replace />} />

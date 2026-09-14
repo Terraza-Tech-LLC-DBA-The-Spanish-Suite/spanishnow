@@ -137,8 +137,8 @@ const SessionManager = () => {
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${stepType === 'learn'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
                             }`}>
                             {stepType === 'learn' ? <FaGraduationCap /> : <FaBrain />}
                             {stepType === 'learn' ? `Learn Concept ${conceptIndex}/${lessonCards.length}` : `Test Concept ${conceptIndex}/${lessonCards.length}`}
@@ -220,10 +220,10 @@ const SessionManager = () => {
 
                 <div className="pt-4 text-center">
                     <button
-                        onClick={() => navigate('/flashcards')}
+                        onClick={() => navigate('/decks')}
                         className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                     >
-                        ← Return to Flashcards Library
+                        ← Return to Decks Library
                     </button>
                 </div>
             </div>
@@ -262,10 +262,10 @@ const SessionManager = () => {
 
             <div className="flex justify-center">
                 <button
-                    onClick={() => navigate('/flashcards')}
+                    onClick={() => navigate('/decks')}
                     className="px-8 py-3.5 bg-custom-600 hover:bg-custom-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
                 >
-                    Back to Flashcards Library
+                    Back to Decks Library
                 </button>
             </div>
         </div>

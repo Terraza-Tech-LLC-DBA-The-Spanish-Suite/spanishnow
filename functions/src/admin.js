@@ -31,7 +31,7 @@ exports.saveDeck = onCall(async (request) => {
         throw new HttpsError('invalid-argument', 'Deck data object is required.');
     }
 
-    const { title, topic, level, isFree, cards } = deckData;
+    const { title, topic, level, isFree, cards, order } = deckData;
 
     if (typeof title !== 'string' || title.trim() === '' || title.length > 100) {
         throw new HttpsError('invalid-argument', 'A valid title (1-100 characters) is required.');
@@ -41,8 +41,8 @@ exports.saveDeck = onCall(async (request) => {
         throw new HttpsError('invalid-argument', 'A valid topic (1-50 characters) is required.');
     }
 
-    if (typeof level !== 'string' || level.trim() === '' || level.length > 20) {
-        throw new HttpsError('invalid-argument', 'A valid level (1-20 characters) is required.');
+    if (typeof level !== 'string' && typeof level !== 'number') {
+        throw new HttpsError('invalid-argument', 'A valid level is required.');
     }
 
     if (typeof isFree !== 'boolean') {
@@ -64,7 +64,14 @@ exports.saveDeck = onCall(async (request) => {
     }
     
     // Reconstruct the object explicitly to drop any unvalidated or hidden properties
-    const sanitizedDeckData = { title, topic, level, isFree, cards };
+    const sanitizedDeckData = { 
+        title, 
+        topic, 
+        level: Number(level) || 1, 
+        isFree, 
+        cards,
+        ...(order !== undefined && { order: Number(order) || 0 })
+    };
 
     try {
         if (deckId) {

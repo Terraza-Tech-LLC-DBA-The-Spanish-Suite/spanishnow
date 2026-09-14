@@ -17,6 +17,7 @@ const DeckForm = ({ decks }) => {
     // --- NEW: State for topic and level ---
     const [topic, setTopic] = useState('');
     const [level, setLevel] = useState(1);
+    const [order, setOrder] = useState(1);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -26,9 +27,9 @@ const DeckForm = ({ decks }) => {
             const cardsWithIds = initialData.cards ? initialData.cards.map(card => card.id ? card : { ...card, id: uuidv4() }) : [];
             setCards(cardsWithIds.length > 0 ? cardsWithIds : [{ spanish: '', english: '', vocab: '', id: uuidv4() }]);
             setIsFree(initialData.isFree === true);
-            // --- NEW: Populate topic and level fields ---
             setTopic(initialData.topic || '');
             setLevel(initialData.level || 1);
+            setOrder(initialData.order ?? initialData.level ?? 1);
         } else {
             setIsFree(true);
         }
@@ -54,9 +55,9 @@ const DeckForm = ({ decks }) => {
             title,
             cards: cards.filter(c => c.spanish.trim() && c.english.trim()).map(c => c.id ? c : { ...c, id: uuidv4() }),
             isFree,
-            // --- NEW: Add topic and level to the saved data ---
             topic: topic.toLowerCase(), // Save topic in lowercase for consistency
-            level: Number(level),
+            level: Number(level) || 1,
+            order: Number(order) || 1,
         };
         await saveDeck(deckData, deckId);
         navigate('/');
@@ -79,7 +80,7 @@ const DeckForm = ({ decks }) => {
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-6"
                 />
 
-                {/* --- NEW: Topic and Level Inputs --- */}
+                {/* --- Topic, Level, and Order Inputs --- */}
                 <div className="flex gap-4 mb-6">
                     <div className="flex-1">
                         <label className="block text-gray-700 text-sm font-bold mb-2">Topic</label>
@@ -87,7 +88,7 @@ const DeckForm = ({ decks }) => {
                             type="text"
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
-                            placeholder="e.g., Restaurant"
+                            placeholder="e.g., greetings, restaurant"
                             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700"
                         />
                     </div>
@@ -98,6 +99,17 @@ const DeckForm = ({ decks }) => {
                             value={level}
                             onChange={(e) => setLevel(e.target.value)}
                             min="1"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700"
+                        />
+                    </div>
+                    <div className="w-28">
+                        <label className="block text-gray-700 text-sm font-bold mb-2">Order #</label>
+                        <input 
+                            type="number"
+                            value={order}
+                            onChange={(e) => setOrder(e.target.value)}
+                            min="1"
+                            placeholder="1, 2, 3..."
                             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700"
                         />
                     </div>
