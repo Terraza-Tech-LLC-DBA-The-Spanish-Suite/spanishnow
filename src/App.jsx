@@ -29,6 +29,7 @@ const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./components/TermsOfService'));
 const DeleteAccountPage = lazy(() => import('./components/DeleteAccountPage'));
 const LoginPage = lazy(() => import('./components/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./components/ForgotPasswordPage'));
 const VerifyEmailPage = lazy(() => import('./components/VerifyEmailPage'));
 const LearningJourney = lazy(() => import('./components/LearningJourney'));
 
@@ -167,6 +168,11 @@ export default function App() {
                         <Route path="/login" element={
                             <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
                                 <LoginPage />
+                            </Suspense>
+                        } />
+                        <Route path="/forgot-password" element={
+                            <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
+                                <ForgotPasswordPage />
                             </Suspense>
                         } />
                         <Route path="*" element={<LandingPage />} />

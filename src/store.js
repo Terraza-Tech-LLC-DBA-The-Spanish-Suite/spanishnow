@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { db, functions } from './firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, getFirestore, setDoc, getDoc, increment, query, where, documentId, deleteDoc, orderBy, serverTimestamp, arrayUnion, onSnapshot } from "firebase/firestore";
-import { getAuth, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, onAuthStateChanged, signOut, getAdditionalUserInfo, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, onAuthStateChanged, signOut, getAdditionalUserInfo, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 
 const auth = getAuth();
@@ -1053,6 +1053,15 @@ export const useDecksStore = create((set, get) => ({
         } catch (error) {
             console.error("Server-side sign-in verification failed:", error);
             await signOut(auth);
+            throw error;
+        }
+    },
+
+    sendPasswordReset: async (email) => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+        } catch (error) {
+            console.error("Error sending password reset email:", error);
             throw error;
         }
     },
