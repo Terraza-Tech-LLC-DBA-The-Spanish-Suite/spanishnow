@@ -141,7 +141,14 @@ const LandingPage = () => {
                             Your browser does not support the video tag.
                         </video>
                     </div>
-
+                    <div className="flex justify-center items-center">
+                        <a
+                            href="#signup"
+                            className="block sm:hidden px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl shadow-md transition-all text-sm flex items-center justify-center transform hover:scale-105 active:scale-95"
+                        >
+                            Sign up
+                        </a>
+                    </div>
                     {/* About Section */}
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 md:p-8 shadow-sm border border-gray-200 dark:border-gray-700">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">About this platform</h2>
@@ -171,7 +178,7 @@ const LandingPage = () => {
                 </div>
 
                 {/* --- Right Column: Sticky CTA Card --- */}
-                <div className="w-full lg:w-96 shrink-0">
+                <div id="signup" className="w-full lg:w-96 shrink-0">
                     <div className="sticky top-8 bg-white dark:bg-gray-800 rounded-2xl p-6 md:p-8 shadow-xl border border-gray-200 dark:border-gray-700">
 
                         <div>
