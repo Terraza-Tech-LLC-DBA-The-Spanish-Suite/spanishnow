@@ -123,7 +123,7 @@ const LandingPage = () => {
                     {/* Hero Title */}
                     <div className="text-center lg:text-left">
                         <h1 className="text-4xl md:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-4">
-                            Master Spanish With <span className='md:text-5xl italic bg-gradient-to-r from-red-600 to-amber-400 bg-clip-text text-transparent'>Through Immersion</span>
+                            Master Spanish <span className='md:text-5xl italic bg-gradient-to-r from-red-600 to-amber-400 bg-clip-text text-transparent'>Through Immersion</span>
                         </h1>
                         <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto lg:mx-0">
                             Unlock your Spanish potential through interactive stories, spaced repetition, and real-world AI conversations.
