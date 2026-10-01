@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDecksStore } from '../store';
 import { FaTiktok } from 'react-icons/fa';
-import { BsCheckCircleFill } from 'react-icons/bs';
+import { BsCheckCircleFill, BsSunFill, BsMoonStarsFill } from 'react-icons/bs';
 import { Link } from 'react-router-dom';
 
 const LandingPage = () => {
@@ -10,6 +10,8 @@ const LandingPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
+    const theme = useDecksStore((state) => state.theme);
+    const toggleTheme = useDecksStore((state) => state.toggleTheme);
     const signInWithGoogle = useDecksStore((state) => state.signInWithGoogle);
     const signInWithFacebook = useDecksStore((state) => state.signInWithFacebook);
     const signUpWithEmail = useDecksStore((state) => state.signUpWithEmail);
@@ -87,6 +89,20 @@ const LandingPage = () => {
                     </span>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={toggleTheme}
+                        className="p-2.5 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                        aria-label="Toggle theme"
+                    >
+                        {theme === 'dark' ? (
+                            <BsSunFill className="w-4 h-4 text-amber-400" />
+                        ) : (
+                            <BsMoonStarsFill className="w-4 h-4 text-indigo-600" />
+                        )}
+                    </button>
+
                     <span className="hidden sm:inline text-xs font-semibold text-gray-500 dark:text-gray-400">
                         Already a member?
                     </span>
@@ -107,22 +123,23 @@ const LandingPage = () => {
                     {/* Hero Title */}
                     <div className="text-center lg:text-left">
                         <h1 className="text-4xl md:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-4">
-                            Master Spanish Through <span className='md:text-5xl italic bg-gradient-to-r from-red-600 to-amber-400 bg-clip-text text-transparent'>Immersion</span>
+                            Master Spanish With <span className='md:text-5xl italic bg-gradient-to-r from-red-600 to-amber-400 bg-clip-text text-transparent'>Through Immersion</span>
                         </h1>
                         <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto lg:mx-0">
                             Unlock your Spanish potential through interactive stories, spaced repetition, and real-world AI conversations.
                         </p>
                     </div>
 
-                    {/* Media Placeholder (Video/Image) */}
-                    <div className="aspect-video w-full bg-gray-200 dark:bg-gray-800 rounded-2xl border border-gray-300 dark:border-gray-700 flex items-center justify-center shadow-inner overflow-hidden relative group cursor-pointer">
-                        <div className="absolute inset-0 bg-linear-to-br from-teal-500/10 to-blue-600/10 group-hover:scale-105 transition-transform duration-700"></div>
-                        <span className="text-gray-500 dark:text-gray-400 flex flex-col items-center relative z-10">
-                            <svg className="w-16 h-16 mb-2 opacity-80 drop-shadow-md" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                            </svg>
-                            <span className="font-semibold tracking-wide uppercase text-sm">Welcome Video</span>
-                        </span>
+                    {/* Welcome Video */}
+                    <div className="w-full rounded-2xl overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-black">
+                        <video
+                            controls
+                            preload="metadata"
+                            className="w-full aspect-video rounded-2xl object-cover"
+                        >
+                            <source src="/welcome-video.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
                     </div>
 
                     {/* About Section */}
