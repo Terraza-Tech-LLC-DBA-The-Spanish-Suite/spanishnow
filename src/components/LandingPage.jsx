@@ -94,7 +94,7 @@ const LandingPage = () => {
                     <button
                         type="button"
                         onClick={toggleTheme}
-                        className="p-2.5 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                        className="hidden sm:flex p-2.5 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all items-center justify-center cursor-pointer shadow-xs"
                         title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
                         aria-label="Toggle theme"
                     >
@@ -124,7 +124,6 @@ const LandingPage = () => {
                             aria-label="Toggle navigation menu"
                         >
                             {isMenuOpen ? <FaTimes className="text-sm" /> : <FaBars className="text-sm" />}
-                            {/* <FaChevronDown className={`text-xs transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} /> */}
                         </button>
 
                         {/* Dropdown Menu Popup */}
@@ -170,6 +169,25 @@ const LandingPage = () => {
                                         <FaUserPlus className="text-gray-400 text-base shrink-0" />
                                         <span>Sign Up Form</span>
                                     </a>
+
+                                    <div className="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+
+                                    {/* 4. Theme Switch Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            toggleTheme();
+                                            setIsMenuOpen(false);
+                                        }}
+                                        className="sm:hidden flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left cursor-pointer"
+                                    >
+                                        {theme === 'dark' ? (
+                                            <BsSunFill className="text-amber-400 text-base shrink-0" />
+                                        ) : (
+                                            <BsMoonStarsFill className="text-indigo-600 dark:text-indigo-400 text-base shrink-0" />
+                                        )}
+                                        <span>Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode</span>
+                                    </button>
                                 </div>
                             </>
                         )}
