@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDecksStore } from '../store';
-import { FaTiktok } from 'react-icons/fa';
+import { FaTiktok, FaCalendarAlt, FaBars, FaTimes, FaInfoCircle, FaUserPlus, FaChevronDown } from 'react-icons/fa';
 import { BsCheckCircleFill, BsSunFill, BsMoonStarsFill } from 'react-icons/bs';
 import { Link } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ const LandingPage = () => {
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const theme = useDecksStore((state) => state.theme);
     const toggleTheme = useDecksStore((state) => state.toggleTheme);
@@ -82,12 +83,13 @@ const LandingPage = () => {
         <div className="w-full max-w-6xl mx-auto mt-2 lg:mt-6 animate-fade-in">
 
             {/* --- Landing Page Header Navigation Bar --- */}
-            <div className="flex justify-between items-center mb-8 bg-white dark:bg-gray-800 p-4 px-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-8 bg-white dark:bg-gray-800 p-4 px-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 relative z-30">
                 <div className="flex items-center gap-2">
                     <span className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
                         The Spanish <span className="text-teal-600 dark:text-teal-400">Suite</span>
                     </span>
                 </div>
+
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
@@ -112,6 +114,67 @@ const LandingPage = () => {
                     >
                         Log In
                     </Link>
+                    {/* Navigation Menu Dropdown */}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className="px-3.5 py-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center gap-2 cursor-pointer text-sm font-semibold shadow-xs"
+                            aria-expanded={isMenuOpen}
+                            aria-label="Toggle navigation menu"
+                        >
+                            {isMenuOpen ? <FaTimes className="text-sm" /> : <FaBars className="text-sm" />}
+                            {/* <FaChevronDown className={`text-xs transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} /> */}
+                        </button>
+
+                        {/* Dropdown Menu Popup */}
+                        {isMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
+                                <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50 animate-fade-in">
+                                    <div className="px-4 py-1.5 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                        Navigation
+                                    </div>
+
+                                    {/* 1. Schedule 1-on-1 Link (Beginning of the list) */}
+                                    <Link
+                                        to="/free-booking"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/40 transition-colors"
+                                    >
+                                        <FaCalendarAlt className="text-teal-600 dark:text-teal-400 text-base shrink-0" />
+                                        <div className="flex flex-col">
+                                            <span>Schedule 1-on-1</span>
+                                            <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">Free Google Calendar session</span>
+                                        </div>
+                                    </Link>
+
+                                    <div className="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+
+                                    {/* 2. About Link */}
+                                    <a
+                                        href="#about"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                    >
+                                        <FaInfoCircle className="text-gray-400 text-base shrink-0" />
+                                        <span>About Platform</span>
+                                    </a>
+
+                                    {/* 3. Sign Up Link */}
+                                    <a
+                                        href="#signup"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                    >
+                                        <FaUserPlus className="text-gray-400 text-base shrink-0" />
+                                        <span>Sign Up Form</span>
+                                    </a>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
                 </div>
             </div>
 
@@ -150,7 +213,7 @@ const LandingPage = () => {
                         </a>
                     </div>
                     {/* About Section */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 md:p-8 shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div id="about" className="bg-white dark:bg-gray-800 rounded-2xl p-6 md:p-8 shadow-sm border border-gray-200 dark:border-gray-700">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">About this platform</h2>
                         <div className="text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed text-lg">
                             <p>

@@ -32,6 +32,7 @@ const LoginPage = lazy(() => import('./components/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('./components/ForgotPasswordPage'));
 const VerifyEmailPage = lazy(() => import('./components/VerifyEmailPage'));
 const LearningJourney = lazy(() => import('./components/LearningJourney'));
+const FreeBooking = lazy(() => import('./components/FreeBooking'));
 
 // This component is the main layout for authenticated (logged-in) users.
 const AppLayout = () => {
@@ -132,7 +133,7 @@ export default function App() {
     return (
         <div className="dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen flex flex-col items-center justify-top font-sans p-4">
             <Routes>
-                {/* Public Legal Routes */}
+                {/* Public Legal & Booking Routes */}
                 <Route path="/privacy" element={
                     <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
                         <PrivacyPolicy />
@@ -146,6 +147,11 @@ export default function App() {
                 <Route path="/delete-account" element={
                     <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
                         <DeleteAccountPage />
+                    </Suspense>
+                } />
+                <Route path="/free-booking" element={
+                    <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
+                        <FreeBooking />
                     </Suspense>
                 } />
 
