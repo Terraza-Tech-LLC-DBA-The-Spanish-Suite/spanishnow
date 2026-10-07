@@ -143,8 +143,8 @@ const LandingPage = () => {
                                     >
                                         <FaCalendarAlt className="text-teal-600 dark:text-teal-400 text-base shrink-0" />
                                         <div className="flex flex-col">
-                                            <span>Schedule 1-on-1</span>
-                                            <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">Free Google Calendar session</span>
+                                            <span>Book Free Coaching</span>
+                                            <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">Free Google Meet session</span>
                                         </div>
                                     </Link>
 
@@ -225,7 +225,7 @@ const LandingPage = () => {
                     <div className="flex gap-4 justify-center items-center">
                         <a
                             href="#signup"
-                            className="block sm:hidden px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl shadow-md transition-all text-sm flex items-center justify-center transform hover:scale-105 active:scale-95"
+                            className="block lg:hidden px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl shadow-md transition-all text-sm flex items-center justify-center transform hover:scale-105 active:scale-95"
                         >
                             Sign up
                         </a>
@@ -236,8 +236,8 @@ const LandingPage = () => {
                         >
                             <FaCalendarAlt className="text-teal-600 dark:text-teal-400 text-base shrink-0" />
                             <div className="flex flex-col">
-                                <span>Schedule Free 1-on-1</span>
-                                <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">Free Google Calendar session</span>
+                                <span>Book Free Coaching</span>
+                                <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">Free Google Meet session</span>
                             </div>
                         </Link>
                     </div>
