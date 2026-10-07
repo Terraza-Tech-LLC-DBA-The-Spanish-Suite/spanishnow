@@ -222,13 +222,24 @@ const LandingPage = () => {
                             Your browser does not support the video tag.
                         </video>
                     </div>
-                    <div className="flex justify-center items-center">
+                    <div className="flex gap-4 justify-center items-center">
                         <a
                             href="#signup"
                             className="block sm:hidden px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl shadow-md transition-all text-sm flex items-center justify-center transform hover:scale-105 active:scale-95"
                         >
                             Sign up
                         </a>
+                        <Link
+                            to="/free-booking"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 border-2 rounded-xl border-teal-600 dark:hover:bg-teal-900/40 transition-colors"
+                        >
+                            <FaCalendarAlt className="text-teal-600 dark:text-teal-400 text-base shrink-0" />
+                            <div className="flex flex-col">
+                                <span>Schedule 1-on-1</span>
+                                <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">Free Google Calendar session</span>
+                            </div>
+                        </Link>
                     </div>
                     {/* About Section */}
                     <div id="about" className="bg-white dark:bg-gray-800 rounded-2xl p-6 md:p-8 shadow-sm border border-gray-200 dark:border-gray-700">
