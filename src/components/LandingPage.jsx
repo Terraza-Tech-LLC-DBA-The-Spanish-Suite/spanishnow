@@ -236,7 +236,7 @@ const LandingPage = () => {
                         >
                             <FaCalendarAlt className="text-teal-600 dark:text-teal-400 text-base shrink-0" />
                             <div className="flex flex-col">
-                                <span>Schedule 1-on-1</span>
+                                <span>Schedule Free 1-on-1</span>
                                 <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">Free Google Calendar session</span>
                             </div>
                         </Link>
