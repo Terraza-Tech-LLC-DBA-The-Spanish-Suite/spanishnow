@@ -94,6 +94,8 @@ export const useDecksStore = create((set, get) => ({
     scenarios: [],
     scenariosAiInstructions: '',
     isScenariosLoading: false,
+    grammarScenarios: [],
+    isGrammarScenariosLoading: false,
     speakProgress: {},
     interactionCount: 0,
     userProgressLoaded: false,
@@ -1339,6 +1341,22 @@ export const useDecksStore = create((set, get) => ({
         } catch (error) {
             console.error("Error fetching scenarios:", error);
             set({ isScenariosLoading: false });
+        }
+    },
+
+    fetchGrammarScenarios: async () => {
+        // Cache check: if we already have grammar scenarios, don't re-fetch
+        if (get().grammarScenarios.length > 0 || get().isGrammarScenariosLoading) return;
+
+        set({ isGrammarScenariosLoading: true });
+        try {
+            const scenariosSnapshot = await getDocs(collection(db, 'scenarios-grammar'));
+            const fetchedScenarios = scenariosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            set({ grammarScenarios: fetchedScenarios, isGrammarScenariosLoading: false });
+        } catch (error) {
+            console.error("Error fetching grammar scenarios:", error);
+            set({ isGrammarScenariosLoading: false });
         }
     },
 

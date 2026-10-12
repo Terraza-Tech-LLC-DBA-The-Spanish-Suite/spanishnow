@@ -6,7 +6,8 @@ import { getApp } from 'firebase/app';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { CgPlayButtonR } from "react-icons/cg";
 import { BsCheckCircleFill } from "react-icons/bs";
-import { FaInfoCircle, FaStopCircle, FaKeyboard, FaMicrophone } from "react-icons/fa";
+import { FaInfoCircle, FaStopCircle, FaKeyboard, FaMicrophone, FaBookOpen } from "react-icons/fa";
+import { RiSpeakFill } from "react-icons/ri";
 
 const MAX_FREE_INTERACTIONS = 5;
 const MAX_FREE_CHARS = 100;
@@ -65,16 +66,20 @@ const SpeakCompanion = () => {
     const scenarios = useDecksStore((state) => state.scenarios);
     const scenariosAiInstructions = useDecksStore((state) => state.scenariosAiInstructions);
     const fetchScenarios = useDecksStore((state) => state.fetchScenarios);
-    const fetchSpeakProgress = useDecksStore((state) => state.fetchSpeakProgress);
+    const grammarScenarios = useDecksStore((state) => state.grammarScenarios);
+    const fetchGrammarScenarios = useDecksStore((state) => state.fetchGrammarScenarios);
     const isScenariosLoading = useDecksStore((state) => state.isScenariosLoading);
+    const isGrammarScenariosLoading = useDecksStore((state) => state.isGrammarScenariosLoading);
+    const fetchSpeakProgress = useDecksStore((state) => state.fetchSpeakProgress);
     const [isRecording, setIsRecording] = useState(false);
     const [userSpeech, setUserSpeech] = useState('');
     const [chatHistory, setChatHistory] = useState([]);
+    const [activeTab, setActiveTab] = useState('real-life'); // 'real-life' or 'grammar'
 
     // --- Derived state from URL ---
     const selectedScenario = useMemo(() =>
-        scenarios.find(s => s.id === scenarioId),
-        [scenarios, scenarioId]);
+        scenarios.find(s => s.id === scenarioId) || grammarScenarios.find(s => s.id === scenarioId),
+        [scenarios, grammarScenarios, scenarioId]);
 
     const selectedContextAndObjectives = useMemo(() =>
         (selectedScenario && roleIndex !== undefined) ? selectedScenario.rolePlays[parseInt(roleIndex, 10)] : null,
@@ -158,8 +163,20 @@ const SpeakCompanion = () => {
     // Fetch Scenarios and Goals from Firestore
     useEffect(() => {
         fetchScenarios();
+        fetchGrammarScenarios();
         fetchSpeakProgress();
-    }, [fetchScenarios, fetchSpeakProgress]);
+    }, [fetchScenarios, fetchGrammarScenarios, fetchSpeakProgress]);
+
+    // Keep active tab in sync with selected scenario if navigated directly
+    useEffect(() => {
+        if (scenarioId) {
+            if (grammarScenarios.some(s => s.id === scenarioId)) {
+                setActiveTab('grammar');
+            } else if (scenarios.some(s => s.id === scenarioId)) {
+                setActiveTab('real-life');
+            }
+        }
+    }, [scenarioId, scenarios, grammarScenarios]);
 
     useEffect(() => {
         // Check for browser support
@@ -437,58 +454,111 @@ const SpeakCompanion = () => {
         }
     };
 
-    if (isScenariosLoading && scenarios.length === 0) {
-        return (
-            <div className="p-6 flex justify-center items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-custom-700"></div>
-            </div>
-        );
-    }
-
     if (!selectedScenario) {
+        const activeList = activeTab === 'real-life' ? scenarios : grammarScenarios;
+        const isCurrentLoading = activeTab === 'real-life' ? isScenariosLoading : isGrammarScenariosLoading;
+
         return (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md w-full max-w-4xl mx-auto animate-fade-in">
-                <h1 className="text-5xl my-4 font-bold text-custom-800 dark:text-custom-500 text-center">Pick a Scenario</h1>
-                <p className="flex justify-center items-center gap-2 rounded-lg p-2 bg-amber-100 text-gray-700 mb-8 text-center italic">
-                    <FaInfoCircle />Select a real-life scenario to practice your Spanish speaking skills.
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md w-full max-w-4xl mx-auto p-4 sm:p-6 animate-fade-in">
+                <h1 className="text-4xl sm:text-5xl my-4 font-bold text-custom-800 dark:text-custom-500 text-center">
+                    Pick a Scenario
+                </h1>
+
+                {/* --- Tabs: Real-Life vs Grammar Scenarios --- */}
+                <div className="flex justify-center mb-6">
+                    <div className="inline-flex p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl max-w-md w-full shadow-inner">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('real-life')}
+                            className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'real-life'
+                                    ? 'bg-white dark:bg-gray-800 text-custom-700 dark:text-custom-400 shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                }`}
+                        >
+                            <RiSpeakFill className="text-base" />
+                            <span>Real Life</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === 'real-life'
+                                    ? 'bg-custom-100 dark:bg-custom-900/60 text-custom-800 dark:text-custom-300'
+                                    : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                                }`}>
+                                {scenarios.length}
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('grammar')}
+                            className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'grammar'
+                                    ? 'bg-white dark:bg-gray-800 text-custom-700 dark:text-custom-400 shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                }`}
+                        >
+                            <FaBookOpen className="text-base" />
+                            <span>Grammar</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === 'grammar'
+                                    ? 'bg-custom-100 dark:bg-custom-900/60 text-custom-800 dark:text-custom-300'
+                                    : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                                }`}>
+                                {grammarScenarios.length}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <p className="flex justify-center items-center gap-2 rounded-lg p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 mb-6 text-center text-sm sm:text-base italic">
+                    <FaInfoCircle className="shrink-0 text-amber-600 dark:text-amber-400" />
+                    {activeTab === 'real-life'
+                        ? 'Select a real-life scenario to practice conversational Spanish in everyday situations.'
+                        : 'Select a grammar scenario to master specific tenses, rules, and structures in conversation.'}
                 </p>
 
-                {!isPremium &&
-                    <InteractionCounts />
-                }
+                {!isPremium && <InteractionCounts />}
 
-                <div className="grid grid-cols-1 gap-6">
-                    {scenarios.map(scenario => {
-                        // --- NEW: Calculate progress for this scenario ---
-                        const completedCount = speakProgress[scenario.id]?.length || 0;
-                        const totalCount = scenario.rolePlays ? scenario.rolePlays.length : 0;
-                        const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+                {isCurrentLoading && activeList.length === 0 ? (
+                    <div className="py-16 flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-custom-700"></div>
+                    </div>
+                ) : activeList.length === 0 ? (
+                    <div className="p-12 text-center text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                        No {activeTab === 'real-life' ? 'real-life' : 'grammar'} scenarios available.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                        {activeList.map(scenario => {
+                            const completedCount = speakProgress[scenario.id]?.length || 0;
+                            const totalCount = scenario.rolePlays ? scenario.rolePlays.length : 0;
+                            const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
-                        return (
-                            <button
-                                key={scenario.id}
-                                onClick={() => navigate(`/speakCompanion/${scenario.id}`)}
-                                className="flex flex-row justify-between items-center text-left p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-custom-500 dark:hover:border-custom-500 hover:shadow-lg transition-all bg-gray-50 dark:bg-gray-900 group"
-                            >
-                                <div className="flex flex-col gap-2 flex-1">
-                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-custom-600 dark:group-hover:text-custom-400 transition-colors">
-                                        {scenario.name}
-                                    </h3>
-                                    <div className="flex justify-between items-start w-full">
-                                        <span className="px-2 py-1 bg-custom-100 dark:bg-custom-900 text-custom-800 dark:text-custom-200 text-xs font-bold rounded-full uppercase tracking-wide">
-                                            {totalCount > 1 ? `${totalCount} Roles` : `${totalCount} Role`}
-                                        </span>
+                            return (
+                                <button
+                                    key={scenario.id}
+                                    onClick={() => navigate(`/speakCompanion/${scenario.id}`)}
+                                    className="flex flex-row justify-between items-center text-left p-5 sm:p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-custom-500 dark:hover:border-custom-500 hover:shadow-lg transition-all bg-gray-50 dark:bg-gray-900 group cursor-pointer"
+                                >
+                                    <div className="flex flex-col gap-2 flex-1 pr-4">
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-custom-600 dark:group-hover:text-custom-400 transition-colors">
+                                            {scenario.name || scenario.title}
+                                        </h3>
+                                        {scenario.description && (
+                                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                                {scenario.description}
+                                            </p>
+                                        )}
+                                        <div className="flex justify-between items-start w-full mt-1">
+                                            <span className="px-2.5 py-1 bg-custom-100 dark:bg-custom-900/60 text-custom-800 dark:text-custom-200 text-xs font-bold rounded-full uppercase tracking-wide">
+                                                {totalCount > 1 ? `${totalCount} Roles` : `${totalCount} Role`}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* --- NEW: Display Progress Gauge --- */}
-                                <div className="ml-4 flex flex-col items-center">
-                                    <CircularProgress percentage={progressPercent} />
-                                </div>
-                            </button>
-                        )
-                    })}
-                </div>
+                                    <div className="ml-2 sm:ml-4 flex flex-col items-center shrink-0">
+                                        <CircularProgress percentage={progressPercent} />
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         );
     }
@@ -530,8 +600,8 @@ const SpeakCompanion = () => {
                                         </div>
                                         {rolePlay.difficulty && (
                                             <span className={`px-2 py-1 text-xs font-bold rounded-full uppercase tracking-wide ${rolePlay.difficulty === 'Beginner' ? 'bg-green-100 text-green-800' :
-                                                    rolePlay.difficulty === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-red-100 text-red-800'
+                                                rolePlay.difficulty === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-red-100 text-red-800'
                                                 }`}>
                                                 {rolePlay.difficulty}
                                             </span>
@@ -639,8 +709,8 @@ const SpeakCompanion = () => {
                 {chatHistory.map((msg, index) => (
                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[80%] p-3 rounded-lg ${msg.role === 'user'
-                                ? 'bg-custom-500 text-white rounded-br-none'
-                                : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-bl-none'
+                            ? 'bg-custom-500 text-white rounded-br-none'
+                            : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-bl-none'
                             }`}>
                             {msg.text ? msg.text.replace(/[*_#~`]/g, '') : ''}
                         </div>
@@ -671,8 +741,8 @@ const SpeakCompanion = () => {
                         disabled={isRecording || isAiProcessing}
                         onClick={() => setInputMode('voice')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all duration-200 ${inputMode === 'voice'
-                                ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold'
-                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
+                            ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
                             }`}
                     >
                         <FaMicrophone size={14} />
@@ -682,8 +752,8 @@ const SpeakCompanion = () => {
                         disabled={isRecording || isAiProcessing}
                         onClick={() => setInputMode('text')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all duration-200 ${inputMode === 'text'
-                                ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold'
-                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
+                            ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
                             }`}
                     >
                         <FaKeyboard size={14} />
@@ -699,8 +769,8 @@ const SpeakCompanion = () => {
                                 onContextMenu={(e) => e.preventDefault()}
                                 style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}
                                 className={`p-5 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 touch-none select-none ${isRecording
-                                        ? 'bg-red-500 text-white animate-pulse ring-8 ring-red-500/20 shadow-red-500/40'
-                                        : 'bg-custom-500 text-white hover:bg-custom-600 shadow-custom-500/40'
+                                    ? 'bg-red-500 text-white animate-pulse ring-8 ring-red-500/20 shadow-red-500/40'
+                                    : 'bg-custom-500 text-white hover:bg-custom-600 shadow-custom-500/40'
                                     }`}
                                 aria-label={isRecording ? "Tap to stop recording" : "Tap to start recording"}
                             >
@@ -770,8 +840,8 @@ const SpeakCompanion = () => {
                 <button
                     onClick={handleCompleteRolePlay}
                     className={`px-8 py-3 font-bold rounded-lg shadow-md transition-colors flex items-center justify-center mx-auto gap-2 ${speakProgress[selectedScenario.id]?.includes(selectedContextAndObjectives.name)
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'bg-green-600 text-white hover:bg-green-700'
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-green-600 text-white hover:bg-green-700'
                         }`}
                 >
                     <BsCheckCircleFill />

@@ -70,10 +70,14 @@ exports.chatWithGemini = onCall({
     let fetchedAiInstructions;
 
     try {
-        const [scenarioDoc, promptsDoc] = await Promise.all([
+        let [scenarioDoc, promptsDoc] = await Promise.all([
             db.collection('scenarios').doc(personaId).get(),
             db.collection('appInfo').doc('aiPrompts').get()
         ]);
+
+        if (!scenarioDoc.exists) {
+            scenarioDoc = await db.collection('scenarios-grammar').doc(personaId).get();
+        }
 
         if (!scenarioDoc.exists) {
             throw new HttpsError('not-found', 'Scenario not found.');
