@@ -381,7 +381,7 @@ const StoryReader = ({ articleId, onComplete }) => {
     };
 
     return (
-        <div className="w-full h-full overflow-y-auto pb-24 animate-fade-in bg-white dark:bg-gray-900" onClick={closePopup} onScroll={closePopup}>
+        <div className="w-full h-full overflow-y-auto pb-32 sm:pb-36 animate-fade-in bg-white dark:bg-gray-900" onClick={closePopup} onScroll={closePopup}>
             {toastMessage && (
                 <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
                     <div className="bg-linear-to-r from-blue-500 to-teal-500 text-white px-4 py-2 rounded-lg shadow-lg font-semibold text-sm text-center whitespace-nowrap">
@@ -425,48 +425,61 @@ const StoryReader = ({ articleId, onComplete }) => {
                 </div>
 
             </div>
-            {/* Sticky Bottom Control Bar */}
-            <div className="fixed bottom-0 left-0 w-full bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40 p-2 gap-6">
-                <div className="max-w-x mx-auto flex justify-around items-center">
-                    {lookupResult && lookupResult.sentence && (
+            {/* Floating Bottom Control Bar */}
+            <div
+                className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center gap-2 sm:gap-3 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-full shadow-xl border border-gray-200/90 dark:border-gray-700/90 transition-all">
+                    {lookupResult?.sentence ? (
                         <button
                             onClick={() => handleSpeak(lookupResult.sentence, playbackRate)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-transform transform hover:scale-105 text-sm font-bold focus:outline-none"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-full shadow-sm hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 text-xs font-bold focus:outline-none shrink-0"
                             title="Play Selected Sentence"
                         >
-                            <CiPlay1 className="text-xl" />
-                            Sentence
+                            <CiPlay1 className="text-sm sm:text-base" />
+                            <span>Sentence</span>
                         </button>
-                    ) || (
-                            <button
-                                onClick={() => handleSpeak(lookupResult.sentence, playbackRate)}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-white/50 rounded-full shadow-lg text-sm font-bold cursor-not-allowed focus:outline-none"
-                                title="Play Selected Sentence"
-                            >
-                                <CiPlay1 className="text-xl" />
-                                Sentence
-                            </button>
-                        )}
-                    <div className="flex gap-4 w-full justify-end items-center">
+                    ) : (
+                        <button
+                            disabled
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200/60 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 rounded-full text-xs font-semibold cursor-not-allowed focus:outline-none shrink-0"
+                            title="Click any word to play its sentence"
+                        >
+                            <CiPlay1 className="text-sm sm:text-base" />
+                            <span>Sentence</span>
+                        </button>
+                    )}
+
+                    {/* Vertical Divider */}
+                    <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+
+                    <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
                         {/* Speed Toggle Button */}
                         <button
                             onClick={togglePlaybackRate}
-                            className="flex items-center justify-center w-11 h-11 shrink-0 rounded-full border-2 border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs transition-transform transform hover:scale-105 focus:outline-none"
+                            className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-[11px] sm:text-xs transition-transform transform hover:scale-105 active:scale-95 focus:outline-none"
                             title="Adjust Reading Speed"
                         >
                             {playbackRate}x
                         </button>
+                        {/* Full Story Play/Pause */}
                         <button
                             onClick={handlePlayPauseFullStory}
-                            className="text-3xl text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-transform transform hover:scale-110 focus:outline-none z-10"
+                            className="text-2xl sm:text-[26px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-transform transform hover:scale-110 active:scale-95 focus:outline-none flex items-center justify-center shrink-0"
                             title={playingState.text === fullStoryText && !isPaused ? "Pause Story" : "Play Story"}
                         >
                             {playingState.text === fullStoryText && !isPaused ? <FaRegPauseCircle /> : <FaPlayCircle />}
                         </button>
+                        {/* Full Story Stop */}
                         <button
                             onClick={handleStopFullStory}
                             disabled={playingState.text !== fullStoryText}
-                            className={`text-3xl transition-transform focus:outline-none ${playingState.text === fullStoryText ? 'text-red-500 hover:text-red-600 hover:scale-110' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
+                            className={`text-2xl sm:text-[26px] transition-transform focus:outline-none flex items-center justify-center shrink-0 ${
+                                playingState.text === fullStoryText
+                                    ? 'text-red-500 hover:text-red-600 hover:scale-110 active:scale-95 cursor-pointer'
+                                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                            }`}
                             title="Stop Story"
                         >
                             <FaStopCircle />
