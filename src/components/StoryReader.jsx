@@ -37,6 +37,18 @@ const StoryReader = ({ articleId, onComplete }) => {
     const [isCompleting, setIsCompleting] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [playbackRate, setPlaybackRate] = useState(1.0);
+    const speechSessionRef = useRef({
+        id: 0,
+        sentences: [],
+        sentenceIndex: 0,
+        words: [],
+        wordIndex: 0,
+        sentenceStartTime: 0,
+        rate: 1.0,
+        boundaryCharIndex: -1,
+        boundaryFired: false,
+        textIdentifier: null
+    });
 
     const POPUP_WIDTH = 220;
     const POPUP_HEIGHT_ESTIMATE = 120;
@@ -44,6 +56,18 @@ const StoryReader = ({ articleId, onComplete }) => {
     const sessionWords = activeSession?.wordsSavedInSession || [];
     const [toastMessage, setToastMessage] = useState(null);
     const prevSessionWordsLength = useRef(sessionWords.length);
+
+    useEffect(() => {
+        return () => {
+            if (window.speechSynthesis) {
+                speechSessionRef.current.id++;
+                if (window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                }
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (sessionWords.length > prevSessionWordsLength.current) {
@@ -89,62 +113,218 @@ const StoryReader = ({ articleId, onComplete }) => {
 
     const fullStoryText = article ? article.sentences.map(s => s.spanish).join(' ') : '';
 
-    // --- Event Handlers ---
-    const handleSpeak = (textToSpeak, rate = 1.0) => {
-        if (!textToSpeak || !window.speechSynthesis) return;
-
-        if (
-            window.speechSynthesis.speaking &&
-            currentSpeechRef.current.text === textToSpeak &&
-            currentSpeechRef.current.rate === rate
-        ) {
+    // --- Speech Synthesis Handlers ---
+    const stopSpeech = () => {
+        speechSessionRef.current.id++;
+        if (window.speechSynthesis) {
+            if (window.speechSynthesis.paused) {
+                window.speechSynthesis.resume();
+            }
             window.speechSynthesis.cancel();
-            currentSpeechRef.current = { text: null, rate: null };
-            setPlayingState({ text: null, rate: null });
-            setIsPaused(false);
+        }
+        speechSessionRef.current = {
+            id: speechSessionRef.current.id,
+            sentences: [],
+            sentenceIndex: 0,
+            words: [],
+            wordIndex: 0,
+            sentenceStartTime: 0,
+            rate: playbackRate,
+            boundaryCharIndex: -1,
+            boundaryFired: false,
+            textIdentifier: null
+        };
+        currentSpeechRef.current = { text: null, rate: null };
+        setPlayingState({ text: null, rate: null });
+        setIsPaused(false);
+    };
+
+    const calculateCurrentWordIndex = () => {
+        const session = speechSessionRef.current;
+        if (!session.words || session.words.length === 0) return 0;
+
+        const remainingWords = session.words.slice(session.wordIndex);
+        if (remainingWords.length <= 1) {
+            return session.wordIndex;
+        }
+
+        // 1. If onboundary fired, map boundary character index to the corresponding word
+        if (session.boundaryFired && session.boundaryCharIndex >= 0) {
+            let accumulated = 0;
+            for (let i = 0; i < remainingWords.length; i++) {
+                accumulated += remainingWords[i].length + 1;
+                if (session.boundaryCharIndex < accumulated) {
+                    return session.wordIndex + i;
+                }
+            }
+            return session.wordIndex + remainingWords.length - 1;
+        }
+
+        // 2. Elapsed time fallback (for engines/platforms where onboundary does not fire, e.g. Windows Chrome)
+        const elapsedSec = Math.max(0, (performance.now() - session.sentenceStartTime) / 1000);
+        // Average Spanish speaking rate: ~2.6 words/sec at 1.0 rate
+        const wordsPerSec = 2.6 * (session.rate || 1.0);
+        const estimatedSpoken = Math.floor(elapsedSec * wordsPerSec);
+        return Math.min(
+            session.wordIndex + estimatedSpoken,
+            session.words.length - 1
+        );
+    };
+
+    const playSentenceAt = (sentenceIndex, wordIndex, rate) => {
+        if (!window.speechSynthesis) return;
+
+        const session = speechSessionRef.current;
+        if (sentenceIndex >= session.sentences.length) {
+            stopSpeech();
             return;
         }
 
+        const sentenceText = session.sentences[sentenceIndex] || '';
+        const words = sentenceText.trim().split(/\s+/).filter(Boolean);
+        if (words.length === 0) {
+            playSentenceAt(sentenceIndex + 1, 0, rate);
+            return;
+        }
+
+        if (wordIndex >= words.length) {
+            if (sentenceIndex + 1 < session.sentences.length) {
+                playSentenceAt(sentenceIndex + 1, 0, rate);
+            } else {
+                stopSpeech();
+            }
+            return;
+        }
+
+        const validWordIndex = Math.max(0, wordIndex);
+        const wordsToSpeak = words.slice(validWordIndex);
+        const textToSpeak = wordsToSpeak.join(' ');
+
+        if (!textToSpeak.trim()) {
+            if (sentenceIndex + 1 < session.sentences.length) {
+                playSentenceAt(sentenceIndex + 1, 0, rate);
+            } else {
+                stopSpeech();
+            }
+            return;
+        }
+
+        const sessionId = ++session.id;
+        session.sentenceIndex = sentenceIndex;
+        session.words = words;
+        session.wordIndex = validWordIndex;
+        session.sentenceStartTime = performance.now();
+        session.rate = rate;
+        session.boundaryCharIndex = -1;
+        session.boundaryFired = false;
+
+        currentSpeechRef.current = { text: session.textIdentifier, rate };
+
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
         window.speechSynthesis.cancel();
-        currentSpeechRef.current = { text: textToSpeak, rate };
+
+        setTimeout(() => {
+            if (speechSessionRef.current.id !== sessionId) return;
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = listeningPreference || 'es-ES';
+            utterance.rate = rate;
+
+            if (window.speechSynthesis.getVoices) {
+                const voices = window.speechSynthesis.getVoices();
+                const preferredVoice = voices.find(v => v.lang === (listeningPreference || 'es-ES')) ||
+                    voices.find(v => v.lang && v.lang.startsWith('es'));
+                if (preferredVoice) {
+                    utterance.voice = preferredVoice;
+                }
+            }
+
+            utterance.onboundary = (event) => {
+                if (speechSessionRef.current.id !== sessionId) return;
+                speechSessionRef.current.boundaryFired = true;
+                if (typeof event.charIndex === 'number') {
+                    speechSessionRef.current.boundaryCharIndex = event.charIndex;
+                }
+            };
+
+            utterance.onend = () => {
+                if (speechSessionRef.current.id !== sessionId) return;
+                const nextIdx = speechSessionRef.current.sentenceIndex + 1;
+                if (nextIdx < speechSessionRef.current.sentences.length) {
+                    playSentenceAt(nextIdx, 0, speechSessionRef.current.rate);
+                } else {
+                    stopSpeech();
+                }
+            };
+
+            utterance.onerror = (event) => {
+                if (speechSessionRef.current.id !== sessionId) return;
+                if (event.error === 'canceled' || event.error === 'interrupted') return;
+                console.warn("Speech synthesis error:", event.error);
+                stopSpeech();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }, 25);
+    };
+
+    const handleSpeak = (textToSpeak, rate = playbackRate) => {
+        if (!textToSpeak || !window.speechSynthesis) return;
+
+        // Toggle off if clicking the text/sentence currently playing
+        if (
+            window.speechSynthesis.speaking &&
+            currentSpeechRef.current.text === textToSpeak &&
+            !isPaused
+        ) {
+            stopSpeech();
+            return;
+        }
+
+        stopSpeech();
+        speechSessionRef.current = {
+            id: ++speechSessionRef.current.id,
+            sentences: [textToSpeak],
+            sentenceIndex: 0,
+            words: textToSpeak.trim().split(/\s+/).filter(Boolean),
+            wordIndex: 0,
+            sentenceStartTime: performance.now(),
+            rate: rate,
+            boundaryCharIndex: -1,
+            boundaryFired: false,
+            textIdentifier: textToSpeak
+        };
         setPlayingState({ text: textToSpeak, rate });
         setIsPaused(false);
-
-        const utterance = new SpeechSynthesisUtterance(textToSpeak);
-        utterance.lang = listeningPreference;
-        utterance.rate = rate;
-
-        utterance.onend = () => {
-            if (
-                currentSpeechRef.current.text === textToSpeak &&
-                currentSpeechRef.current.rate === rate
-            ) {
-                currentSpeechRef.current = { text: null, rate: null };
-                setPlayingState({ text: null, rate: null });
-                setIsPaused(false);
-            }
-        };
-
-        utterance.onerror = () => {
-            if (
-                currentSpeechRef.current.text === textToSpeak &&
-                currentSpeechRef.current.rate === rate
-            ) {
-                currentSpeechRef.current = { text: null, rate: null };
-                setPlayingState({ text: null, rate: null });
-                setIsPaused(false);
-            }
-        };
-
-        window.speechSynthesis.speak(utterance);
+        playSentenceAt(0, 0, rate);
     };
 
     const togglePlaybackRate = () => {
-        const newRate = playbackRate === 1.0 ? 0.5 : playbackRate === 0.5 ? 0.75 : 1.0;
+        const RATES = [1.0, 0.90, 0.75, 0.5];
+        const currentIndex = RATES.indexOf(playbackRate);
+        const newRate = currentIndex !== -1 ? RATES[(currentIndex + 1) % RATES.length] : 1.0;
         setPlaybackRate(newRate);
 
-        if (playingState.text && window.speechSynthesis && window.speechSynthesis.speaking && !isPaused) {
-            handleSpeak(playingState.text, newRate);
+        // If speech is currently active (speaking or paused)
+        if (playingState.text && window.speechSynthesis) {
+            const session = speechSessionRef.current;
+            if (window.speechSynthesis.speaking && !isPaused) {
+                // Actively speaking: seamlessly continue from the current word at the new speed
+                const currentWord = calculateCurrentWordIndex();
+                session.id++;
+                if (window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                }
+                window.speechSynthesis.cancel();
+                setPlayingState(prev => ({ ...prev, rate: newRate }));
+                playSentenceAt(session.sentenceIndex, currentWord, newRate);
+            } else if (isPaused) {
+                // Currently paused: remember the new rate so when resumed it plays at newRate
+                session.rate = newRate;
+                setPlayingState(prev => ({ ...prev, rate: newRate }));
+            }
         }
     };
 
@@ -153,28 +333,47 @@ const StoryReader = ({ articleId, onComplete }) => {
 
         if (playingState.text === fullStoryText) {
             if (isPaused) {
-                if (playingState.rate !== playbackRate) {
-                    handleSpeak(fullStoryText, playbackRate);
-                } else {
-                    window.speechSynthesis.resume();
-                    setIsPaused(false);
-                }
+                // Resume from where it was paused (at current playbackRate)
+                const session = speechSessionRef.current;
+                setIsPaused(false);
+                playSentenceAt(session.sentenceIndex, session.wordIndex, playbackRate);
             } else {
-                window.speechSynthesis.pause();
+                // Pause current speech
+                const currentWord = calculateCurrentWordIndex();
+                speechSessionRef.current.wordIndex = currentWord;
+                speechSessionRef.current.id++;
+                if (window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                }
+                window.speechSynthesis.cancel();
                 setIsPaused(true);
             }
         } else {
-            handleSpeak(fullStoryText, playbackRate);
+            // Start full story from the beginning
+            stopSpeech();
+            const sentences = article ? article.sentences.map(s => s.spanish).filter(Boolean) : [];
+            if (sentences.length === 0) return;
+
+            speechSessionRef.current = {
+                id: ++speechSessionRef.current.id,
+                sentences,
+                sentenceIndex: 0,
+                words: sentences[0].trim().split(/\s+/).filter(Boolean),
+                wordIndex: 0,
+                sentenceStartTime: performance.now(),
+                rate: playbackRate,
+                boundaryCharIndex: -1,
+                boundaryFired: false,
+                textIdentifier: fullStoryText
+            };
+            setPlayingState({ text: fullStoryText, rate: playbackRate });
             setIsPaused(false);
+            playSentenceAt(0, 0, playbackRate);
         }
     };
 
     const handleStopFullStory = () => {
-        if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel();
-        currentSpeechRef.current = { text: null, rate: null };
-        setPlayingState({ text: null, rate: null });
-        setIsPaused(false);
+        stopSpeech();
     };
 
     const handleWordClick = (e, word, sentence) => {
@@ -458,10 +657,10 @@ const StoryReader = ({ articleId, onComplete }) => {
                         {/* Speed Toggle Button */}
                         <button
                             onClick={togglePlaybackRate}
-                            className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-[11px] sm:text-xs transition-transform transform hover:scale-105 active:scale-95 focus:outline-none"
+                            className="flex items-center justify-center min-w-7 h-7 sm:min-w-8 sm:h-8 px-1.5 shrink-0 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-[11px] sm:text-xs transition-transform transform hover:scale-105 active:scale-95 focus:outline-none"
                             title="Adjust Reading Speed"
                         >
-                            {playbackRate}x
+                            {playbackRate === 0.9 ? '.90x' : `${playbackRate}x`}
                         </button>
                         {/* Full Story Play/Pause */}
                         <button
@@ -475,11 +674,10 @@ const StoryReader = ({ articleId, onComplete }) => {
                         <button
                             onClick={handleStopFullStory}
                             disabled={playingState.text !== fullStoryText}
-                            className={`text-2xl sm:text-[26px] transition-transform focus:outline-none flex items-center justify-center shrink-0 ${
-                                playingState.text === fullStoryText
-                                    ? 'text-red-500 hover:text-red-600 hover:scale-110 active:scale-95 cursor-pointer'
-                                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                            }`}
+                            className={`text-2xl sm:text-[26px] transition-transform focus:outline-none flex items-center justify-center shrink-0 ${playingState.text === fullStoryText
+                                ? 'text-red-500 hover:text-red-600 hover:scale-110 active:scale-95 cursor-pointer'
+                                : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                                }`}
                             title="Stop Story"
                         >
                             <FaStopCircle />
