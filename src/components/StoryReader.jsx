@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDecksStore } from '../store.js';
 import { LuTurtle } from "react-icons/lu";
 import { BsBookmark, BsBookmarkFill, BsFillVolumeUpFill } from "react-icons/bs";
-import { FaInfoCircle, FaPlayCircle, FaRegPauseCircle, FaStopCircle } from 'react-icons/fa';
+import { FaInfoCircle, FaPlayCircle, FaRegPauseCircle, FaStopCircle, FaBook } from 'react-icons/fa';
 import { CiPlay1 } from 'react-icons/ci';
+import AdminMissingWordsDrawer from './AdminMissingWordsDrawer.jsx';
 
 const StoryReader = ({ articleId, onComplete }) => {
     // --- Store Data ---
@@ -33,6 +34,7 @@ const StoryReader = ({ articleId, onComplete }) => {
     const [editText, setEditText] = useState("");
     const [isTranslationsOn, setIsTranslationsOn] = useState(false);
     const [playingState, setPlayingState] = useState({ text: null, rate: null });
+    const [isMissingWordsDrawerOpen, setIsMissingWordsDrawerOpen] = useState(false);
     const currentSpeechRef = useRef({ text: null, rate: null });
     const [isCompleting, setIsCompleting] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -101,6 +103,23 @@ const StoryReader = ({ articleId, onComplete }) => {
             fetchArticleTranslationsForAdmin(fullText);
         }
     }, [article, isAdmin, fetchArticleTranslationsForAdmin]);
+
+    // Calculate missing words for admins
+    const missingWords = React.useMemo(() => {
+        if (!isAdmin || !article || !article.sentences) return [];
+        const fullStoryWords = article.sentences
+            .map(s => s.spanish)
+            .join(' ')
+            .toLowerCase()
+            .match(/[\p{L}]+/gu) || [];
+        const unique = [...new Set(fullStoryWords)];
+        return unique.filter(w => {
+            if (!translations.has(w)) return false;
+            const trans = translations.get(w);
+            const translationText = typeof trans === 'object' ? trans.translation : trans;
+            return !translationText || translationText === "No translation found";
+        });
+    }, [isAdmin, article, translations]);
 
     if (isLoading || !article) {
         return (
@@ -596,16 +615,34 @@ const StoryReader = ({ articleId, onComplete }) => {
                 <div className="mb-3 max-w-2xl mx-auto">
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">{article.title}</h1>
                 </div>
-                <div className="grid grid-rows items-start max-w-2xl mb-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 max-w-2xl mb-4">
                     <div className="flex gap-2">
                         <button onClick={() => {
-                            setShowTranslations(!showTranslations)
+                            setShowTranslations(!showTranslations);
                             setIsTranslationsOn(!isTranslationsOn);
-                        }
-                        } className={`text-sm px-3 py-1 text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-green-600 transition-colors ` + (isTranslationsOn ? 'bg-green-800' : 'bg-green-500')}>
+                        }} className={`text-sm px-3 py-1 text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-green-600 transition-colors ` + (isTranslationsOn ? 'bg-green-800' : 'bg-green-500')}>
                             {showTranslations ? 'Hide translations' : 'Show translations'}
                         </button>
                     </div>
+                    {isAdmin && (
+                        <button
+                            onClick={() => setIsMissingWordsDrawerOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm transform hover:scale-105 active:scale-95"
+                            title="Open Dictionary Inspector for this story"
+                        >
+                            <FaBook className="text-xs" />
+                            <span>Missing Words</span>
+                            {missingWords.length > 0 ? (
+                                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[11px] font-bold">
+                                    {missingWords.length}
+                                </span>
+                            ) : (
+                                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold">
+                                    0
+                                </span>
+                            )}
+                        </button>
+                    )}
                 </div>
 
                 <div className="text-lg text-gray-700 dark:text-gray-200 space-y-6 max-w-2xl mx-auto">
@@ -685,6 +722,16 @@ const StoryReader = ({ articleId, onComplete }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Admin Missing Words Drawer */}
+            {isAdmin && (
+                <AdminMissingWordsDrawer
+                    isOpen={isMissingWordsDrawerOpen}
+                    onClose={() => setIsMissingWordsDrawerOpen(false)}
+                    missingWords={missingWords}
+                    articleTitle={article?.title}
+                />
+            )}
         </div>
     );
 };

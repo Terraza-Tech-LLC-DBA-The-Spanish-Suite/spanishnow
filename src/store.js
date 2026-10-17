@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { db, functions } from './firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, getFirestore, setDoc, getDoc, increment, query, where, documentId, deleteDoc, orderBy, serverTimestamp, arrayUnion, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, updateDoc, getFirestore, setDoc, getDoc, increment, query, where, documentId, deleteDoc, orderBy, serverTimestamp, arrayUnion, onSnapshot, writeBatch } from "firebase/firestore";
 import { getAuth, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, onAuthStateChanged, signOut, getAdditionalUserInfo, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 
@@ -1611,6 +1611,90 @@ export const useDecksStore = create((set, get) => ({
         } catch (error) {
             console.error("Error saving word translation: ", error);
             alert("Failed to save translation. Please try again.");
+        }
+    },
+
+    saveDictionaryBatch: async (wordsArray) => {
+        if (!get().isAdmin) {
+            console.error("User is not authorized to perform this action.");
+            alert("You do not have permission to edit the dictionary.");
+            return { success: false, error: "Unauthorized" };
+        }
+        try {
+            let count = wordsArray.length;
+            try {
+                const saveBatchCall = httpsCallable(functions, 'saveDictionaryBatch');
+                const res = await saveBatchCall({ words: wordsArray });
+                if (res?.data?.count) count = res.data.count;
+            } catch (fnErr) {
+                console.warn("Cloud function saveDictionaryBatch unavailable or failed, applying direct Firestore batch:", fnErr);
+                const batch = writeBatch(db);
+                for (const item of wordsArray) {
+                    const spanish = item.spanish.trim().toLowerCase();
+                    const docRef = doc(db, 'dictionary', spanish);
+                    batch.set(docRef, {
+                        spanish,
+                        translation: item.translation,
+                        english: item.translation,
+                        examples: item.examples || []
+                    }, { merge: true });
+                }
+                await batch.commit();
+            }
+
+            // Optimistically update activeArticleTranslations so red highlights resolve immediately
+            set(state => {
+                const newTranslations = new Map(state.activeArticleTranslations);
+                wordsArray.forEach(item => {
+                    newTranslations.set(item.spanish.trim().toLowerCase(), {
+                        translation: item.translation,
+                        examples: item.examples || []
+                    });
+                });
+                return { activeArticleTranslations: newTranslations };
+            });
+
+            // Invalidate caches
+            const cache = getCache();
+            cache.articleDetail = {};
+            cache.articlesVersion = 0;
+            setCache(cache);
+
+            return { success: true, count };
+        } catch (error) {
+            console.error("Error saving dictionary batch:", error);
+            alert("Failed to save dictionary batch: " + error.message);
+            return { success: false, error: error.message };
+        }
+    },
+
+    generateDictionaryEntriesWithAI: async (wordsArray) => {
+        if (!get().isAdmin) {
+            alert("Only admins can generate dictionary entries.");
+            return { success: false, error: "Unauthorized" };
+        }
+        try {
+            const generateCall = httpsCallable(functions, 'generateDictionaryEntries');
+            const res = await generateCall({ words: wordsArray });
+            return { success: true, entries: res.data.entries };
+        } catch (error) {
+            console.error("Error generating dictionary entries:", error);
+            throw error;
+        }
+    },
+
+    generateWordContext: async (word, translation) => {
+        try {
+            const generateCall = httpsCallable(functions, 'generateWordContext');
+            const res = await generateCall({ word, translation });
+            return {
+                success: true,
+                explanation: res.data.explanation,
+                examples: res.data.examples || []
+            };
+        } catch (error) {
+            console.error("Error generating word context:", error);
+            throw error;
         }
     },
 }));

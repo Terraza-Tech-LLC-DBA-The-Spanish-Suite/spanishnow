@@ -253,6 +253,48 @@ Stores reading materials for the library.
     *   A "Resend Verification Email" button (with throttle/cooldown).
     *   A "Check Status" button that calls `auth.currentUser.reload()` to check if the user has clicked the verification link.
     *   A "Log Out" button.
+## 16. Feature: Admin Dictionary Inspector & Batch Processing
 
+**Objective:** Provide administrators with an automated in-app tool to scan, review, auto-generate (via Gemini), export, import, and batch-save missing story vocabulary words, their translations, and two contextual usage examples directly into the Firestore dictionary.
 
+**Architecture & Logic:**
+*   **Scanning & Detection:** When an admin enters `StoryReader.jsx`, words in `article.sentences` are matched and verified against the loaded dictionary map (`translations`). Words with missing or `"No translation found"` entries are identified.
+*   **Batch Save Endpoint (`saveDictionaryBatch`):**
+    *   *Backend:* Added to `functions/src/dictionary.js`. Securely checks `admin` claim or `isAdmin === true` in Firestore, accepts an array of up to 100 words, validates string lengths, sanitizes 2 examples (`{ spanish, english }`), and writes using atomic Firestore batching.
+    *   *Frontend Action (`store.js`):* `saveDictionaryBatch(wordsArray)` calls the Cloud Function with an instant Firestore SDK client batch fallback (`writeBatch`) permitted by Firestore security rules for admins. It updates `activeArticleTranslations` in memory so red word highlights resolve immediately and invalidates cached article data.
+*   **AI Auto-Generation (`generateDictionaryEntries`):**
+    *   *Backend:* Added to `functions/src/dictionary.js`. Uses Google Gemini (`gemini-flash-latest`) via `GoogleGenerativeAI` to automatically generate English translations and 2 natural A2-B1 Spanish/English usage examples for up to 50 words in one API call.
+    *   *Frontend Action (`store.js`):* `generateDictionaryEntriesWithAI(wordsArray)` securely requests the entries and populates the inspector list.
+*   **JSON Export & Import:**
+    *   *Export:* Downloads a formatted `<article_title>_missing_words.json` containing the word list and examples template for offline review or editing.
+    *   *Import:* Reads a `.json` file, parses and validates the schema, and populates/merges the in-app list.
+
+**UI Components:**
+*   `AdminMissingWordsDrawer.jsx`: A responsive slide-in side drawer featuring:
+    *   Missing words counter badge.
+    *   One-click "Auto-Fill with AI" (Gemini) button.
+    *   "Export JSON" and "Import JSON" buttons.
+    *   Expandable word cards allowing direct editing of translation, Example 1 (ES/EN), Example 2 (ES/EN), or removal.
+    *   "Push to Dictionary" batch commit button with progress states and notifications.
+*   `StoryReader.jsx`: Displays a "Missing Words" button in the admin controls bar showing the current count of missing words and triggers the drawer.
+
+## 17. Feature: AI Word Context & Additional Examples for Premium Users
+
+**Objective:** Allow Premium users to generate deeper context on flashcards: a clear, concise English explanation of how and when to use the word, alongside 2 additional contextual example sentences in Spanish and English with audio pronunciation. Free users can see the button and are presented with an upgrade modal if clicked.
+
+**Architecture & Logic:**
+*   **API Endpoint (`generateWordContext` in `functions/src/ai.js`):**
+    *   *Authentication & Authorization:* Requires authentication. Checks custom claim `admin === true` or Firestore `isAdmin === true` or `hasActiveSubscription === true`.
+    *   *Daily Limits:* Enforces a limit of 25 requests per day for premium users via Firestore transaction at `users/{uid}/daily_limits/word_context` (Admins bypass the limit).
+    *   *Input Validation:* Requires `word` (1-100 characters), optional `translation` (1-200 characters).
+    *   *AI Model:* Invokes Google Gemini (`gemini-flash-latest`) with a structured JSON schema returning:
+        *   `explanation`: string (English explanation of nuances, collocations, grammatical gender, or common phrases).
+        *   `examples`: array of 2 `{ spanish, english }` objects.
+*   **Frontend Action (`store.js`):**
+    *   `generateWordContext(word, translation)` calls `httpsCallable(functions, 'generateWordContext')`.
+*   **UI Components:**
+    *   `FlashcardView.jsx`:
+        *   Renders an "Explain & More Examples (AI)" button in the Usage Context section.
+        *   If Free user: triggers `Modal.jsx` explaining the Premium feature with a button navigating to `/#premium`.
+        *   If Premium user: triggers loading state, calls `generateWordContext`, and renders the English explanation card and 2 additional example sentence cards with audio TTS triggers.
 

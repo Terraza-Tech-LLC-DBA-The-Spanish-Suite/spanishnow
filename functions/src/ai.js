@@ -394,3 +394,119 @@ exports.generateAudioTTS = onCall(async (request) => {
         throw new HttpsError('internal', 'Failed to generate audio from text.');
     }
 });
+
+const MAX_PREMIUM_CONTEXT_PER_DAY = 25;
+
+/**
+ * Generates an English explanation and 2 additional contextual example sentences
+ * for a vocabulary word. Restricted to Premium users with a daily limit of 25.
+ */
+exports.generateWordContext = onCall({
+    secrets: [geminiApiKey],
+    region: "us-central1",
+    cors: true
+}, async (request) => {
+    // 1. Authentication Check
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    }
+
+    if (!request.auth.token.email_verified) {
+        throw new HttpsError('failed-precondition', 'Email verification required.');
+    }
+
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+
+    // 2. Premium Authorization Check
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.data() || {};
+    const isAdmin = request.auth.token.admin === true || userData.isAdmin === true;
+    const isPremium = isAdmin || userData.hasActiveSubscription === true;
+
+    if (!isPremium) {
+        throw new HttpsError('permission-denied', 'Generating deep word context is a Premium feature.');
+    }
+
+    // 3. Strict Input Validation
+    const { word, translation, date } = request.data;
+    if (!word || typeof word !== 'string' || word.trim() === '' || word.length > 100) {
+        throw new HttpsError('invalid-argument', 'A valid Spanish word (1-100 characters) is required.');
+    }
+    if (translation !== undefined && (typeof translation !== 'string' || translation.length > 200)) {
+        throw new HttpsError('invalid-argument', 'Translation must be a string up to 200 characters.');
+    }
+    if (date !== undefined && (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+        throw new HttpsError('invalid-argument', 'If provided, date must be a string in YYYY-MM-DD format.');
+    }
+
+    const cleanWord = word.trim().toLowerCase();
+    const cleanTranslation = (translation || '').trim();
+
+    // 4. Rate Limiting Check for non-admin Premium users (25 requests/day)
+    if (!isAdmin) {
+        const today = date || new Date().toLocaleDateString('en-CA');
+        const limitRef = db.collection('users').doc(uid).collection('daily_limits').doc('word_context');
+
+        await db.runTransaction(async (t) => {
+            const limitDoc = await t.get(limitRef);
+            let currentCount = 0;
+
+            if (limitDoc.exists && limitDoc.data().date === today) {
+                currentCount = limitDoc.data().count || 0;
+            }
+
+            if (currentCount >= MAX_PREMIUM_CONTEXT_PER_DAY) {
+                throw new HttpsError('resource-exhausted', `You have reached your daily limit of ${MAX_PREMIUM_CONTEXT_PER_DAY} AI context generations.`);
+            }
+
+            t.set(limitRef, { date: today, count: currentCount + 1 }, { merge: true });
+        });
+    }
+
+    // 5. Invoke Gemini API
+    const prompt = `You are a supportive Spanish language teacher. Explain the Spanish word "${cleanWord}"${cleanTranslation ? ` (approximate translation: "${cleanTranslation}")` : ''} to an English-speaking Spanish learner.
+
+Generate:
+1. "explanation": A concise, clear, and encouraging explanation in English (2 to 4 sentences). Explain how native speakers naturally use this word, any subtle nuances, grammatical gender, common collocations, or false friends to watch out for.
+2. "examples": Exactly 2 distinct and natural example sentences in Spanish (A2-B1 level) demonstrating realistic everyday usage, along with accurate English translations.
+
+Respond ONLY with a valid JSON object matching this exact schema:
+{
+  "explanation": "Clear explanation in English...",
+  "examples": [
+    { "spanish": "Ejemplo en español 1.", "english": "Example sentence in English 1." },
+    { "spanish": "Ejemplo en español 2.", "english": "Example sentence in English 2." }
+  ]
+}`;
+
+    try {
+        const genAI = new GoogleGenerativeAI(geminiApiKey.value());
+        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const rawText = result.response.text();
+        const parsed = JSON.parse(rawText);
+
+        if (!parsed || typeof parsed.explanation !== 'string' || !Array.isArray(parsed.examples)) {
+            throw new Error("Invalid structure returned from AI.");
+        }
+
+        const sanitizedExamples = parsed.examples.slice(0, 2).map(ex => ({
+            spanish: typeof ex.spanish === 'string' ? ex.spanish.trim().slice(0, 300) : '',
+            english: typeof ex.english === 'string' ? ex.english.trim().slice(0, 300) : ''
+        })).filter(ex => ex.spanish && ex.english);
+
+        return {
+            explanation: parsed.explanation.trim(),
+            examples: sanitizedExamples
+        };
+    } catch (error) {
+        console.error("Error generating word context with Gemini:", error);
+        if (error.code) throw error;
+        throw new HttpsError('internal', 'Failed to generate word context with AI.');
+    }
+});
