@@ -344,15 +344,23 @@ const AccountPage = ({ decks }) => {
                         <p className="mb-1 text-blue-100">Your next recommended story is waiting:</p>
                         <p className="font-semibold text-lg">"{nextArticle.title}" <span className="text-sm bg-white/20 px-2 py-0.5 rounded ml-2">{nextArticle.level}</span></p>
                     </div>
-                    <button
-                        onClick={() => {
-                            startSession(nextArticle.id);
-                            navigate('/lesson');
-                        }}
-                        className="animate-pulse px-6 py-3 bg-white text-blue-600 font-bold rounded-full shadow-md hover:bg-gray-100 transition-transform transform hover:scale-105 flex items-center gap-2 whitespace-nowrap"
-                    >
-                        Start Learning <FaArrowCircleRight />
-                    </button>
+                    <div className="relative">
+                        <button
+                            onClick={() => {
+                                startSession(nextArticle.id);
+                                navigate('/lesson');
+                            }}
+                            className="px-6 py-3 bg-white border border-black text-blue-600 font-bold rounded-lg shadow-md hover:bg-gray-100 transition-transform transform hover:scale-105 flex items-center gap-2 whitespace-nowrap"
+                        >
+                            Start Reading
+                        </button>
+                        <div className="absolute -top-1 -right-1">
+                            <span className="relative flex size-4 ">
+                                <span className="absolute inline-flex border border-black h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"></span>
+                                <span className="relative inline-flex size-4 rounded-full bg-yellow-500"></span>
+                            </span>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -380,13 +388,25 @@ const AccountPage = ({ decks }) => {
                         <p className="mb-1 text-gray-200">No words currently due for review. Keep reading!</p>
                     )}
                 </div>
-                <button
-                    onClick={handleStartReview}
-                    disabled={!hasDueWords}
-                    className={`px-6 py-3 bg-white text-blue-600 font-bold rounded-full shadow-md hover:bg-gray-100 transition-transform transform hover:scale-105 flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${hasDueWords ? 'animate-pulse' : ''}`}
-                >
-                    Review Now ({Math.min(dueWords.length, 5)}) <FaArrowCircleRight />
-                </button>
+                <div className="relative">
+                    <button
+                        onClick={handleStartReview}
+                        disabled={!hasDueWords}
+                        className={`px-6 py-3 bg-white text-blue-600 border border-black font-bold rounded-lg shadow-md hover:bg-gray-100 transition-transform transform hover:scale-105 flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                        Review Now ({Math.min(dueWords.length, 5)})
+                    </button>
+                    {
+                        hasDueWords && (
+                            <div className="absolute -top-1 -right-1">
+                                <span className="relative flex size-4">
+                                    <span className="absolute inline-flex border border-black h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"></span>
+                                    <span className="relative inline-flex size-4 rounded-full bg-yellow-500"></span>
+                                </span>
+                            </div>
+                        )
+                    }
+                </div>
             </div>
 
             {/* --- Billing & Subscription Section --- */}
