@@ -322,7 +322,7 @@ const SpeakCompanion = () => {
         return (
             <div className="mb-6 text-center">
                 <span className="text-sm font-semibold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">
-                    Free Interactions left: {MAX_FREE_INTERACTIONS}
+                    Free Interactions left: {MAX_FREE_INTERACTIONS - interactionCount}
                 </span>
             </div>
         )
@@ -471,15 +471,15 @@ const SpeakCompanion = () => {
                             type="button"
                             onClick={() => setActiveTab('real-life')}
                             className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'real-life'
-                                    ? 'bg-white dark:bg-gray-800 text-custom-700 dark:text-custom-400 shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                ? 'bg-white dark:bg-gray-800 text-custom-700 dark:text-custom-400 shadow-sm'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                                 }`}
                         >
                             <RiSpeakFill className="text-base" />
                             <span>Real Life</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === 'real-life'
-                                    ? 'bg-custom-100 dark:bg-custom-900/60 text-custom-800 dark:text-custom-300'
-                                    : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                                ? 'bg-custom-100 dark:bg-custom-900/60 text-custom-800 dark:text-custom-300'
+                                : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
                                 }`}>
                                 {scenarios.length}
                             </span>
@@ -489,15 +489,15 @@ const SpeakCompanion = () => {
                             type="button"
                             onClick={() => setActiveTab('grammar')}
                             className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'grammar'
-                                    ? 'bg-white dark:bg-gray-800 text-custom-700 dark:text-custom-400 shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                ? 'bg-white dark:bg-gray-800 text-custom-700 dark:text-custom-400 shadow-sm'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                                 }`}
                         >
                             <FaBookOpen className="text-base" />
                             <span>Grammar</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === 'grammar'
-                                    ? 'bg-custom-100 dark:bg-custom-900/60 text-custom-800 dark:text-custom-300'
-                                    : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                                ? 'bg-custom-100 dark:bg-custom-900/60 text-custom-800 dark:text-custom-300'
+                                : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
                                 }`}>
                                 {grammarScenarios.length}
                             </span>

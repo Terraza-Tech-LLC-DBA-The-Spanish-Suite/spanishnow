@@ -59,6 +59,12 @@ const StoryReader = ({ articleId, onComplete }) => {
     const [toastMessage, setToastMessage] = useState(null);
     const prevSessionWordsLength = useRef(sessionWords.length);
 
+    // --- Sentence Recording State ---
+    const [isRecordingSentence, setIsRecordingSentence] = useState(false);
+    const [recordingSelection, setRecordingSelection] = useState(null); // { sentenceIndex, startIndex, endIndex }
+    const [shakingWordKey, setShakingWordKey] = useState(null); // `${sIndex}-${wIndex}`
+    const [toastPrompt, setToastPrompt] = useState(null); // { message, onConfirm, onCancel }
+
     useEffect(() => {
         return () => {
             if (window.speechSynthesis) {
@@ -462,52 +468,243 @@ const StoryReader = ({ articleId, onComplete }) => {
         }
     }
 
+    const triggerShake = (wordKey) => {
+        setShakingWordKey(wordKey);
+        setTimeout(() => setShakingWordKey(null), 400);
+    };
+
+    const handleSentenceWordClick = (e, sIndex, wIndex, rawWords) => {
+        e.stopPropagation();
+        if (lookupResult) closePopup();
+
+        // 1. Initial selection
+        if (!recordingSelection) {
+            setRecordingSelection({ sentenceIndex: sIndex, startIndex: wIndex, endIndex: wIndex });
+            return;
+        }
+
+        // 2. Different sentence isolation check
+        if (recordingSelection.sentenceIndex !== sIndex) {
+            triggerShake(`${sIndex}-${wIndex}`);
+            return;
+        }
+
+        const { startIndex, endIndex } = recordingSelection;
+
+        // 3. Deselection checks
+        if (wIndex >= startIndex && wIndex <= endIndex) {
+            // Sole word deselect
+            if (startIndex === endIndex && wIndex === startIndex) {
+                setRecordingSelection(null);
+                return;
+            }
+            // Start boundary word deselect
+            if (wIndex === startIndex) {
+                setRecordingSelection(prev => ({ ...prev, startIndex: prev.startIndex + 1 }));
+                return;
+            }
+            // End boundary word deselect
+            if (wIndex === endIndex) {
+                setRecordingSelection(prev => ({ ...prev, endIndex: prev.endIndex - 1 }));
+                return;
+            }
+            // Inner word click -> confirmation toast
+            setToastPrompt({
+                message: "Deselecting this word will drop the entire selection. Do you want to continue?",
+                onConfirm: () => {
+                    setRecordingSelection(null);
+                    setToastPrompt(null);
+                },
+                onCancel: () => {
+                    setToastPrompt(null);
+                }
+            });
+            return;
+        }
+
+        const endsWithPunctuation = (wordStr) => /[,.]$/.test((wordStr || '').trim());
+
+        // 4. Forward Expansion (adjacent right)
+        if (wIndex === endIndex + 1) {
+            const prevWord = rawWords[endIndex];
+            if (endsWithPunctuation(prevWord)) {
+                setToastPrompt({
+                    message: "The selected word crosses punctuation (comma/period). Continuing will drop your previous selection and start a new one here. Do you want to continue?",
+                    onConfirm: () => {
+                        setRecordingSelection({ sentenceIndex: sIndex, startIndex: wIndex, endIndex: wIndex });
+                        setToastPrompt(null);
+                    },
+                    onCancel: () => {
+                        setToastPrompt(null);
+                    }
+                });
+                return;
+            }
+            setRecordingSelection(prev => ({ ...prev, endIndex: wIndex }));
+            return;
+        }
+
+        // 5. Backward Expansion (adjacent left)
+        if (wIndex === startIndex - 1) {
+            const clickedWord = rawWords[wIndex];
+            if (endsWithPunctuation(clickedWord)) {
+                setToastPrompt({
+                    message: "The selected word crosses punctuation (comma/period). Continuing will drop your previous selection and start a new one here. Do you want to continue?",
+                    onConfirm: () => {
+                        setRecordingSelection({ sentenceIndex: sIndex, startIndex: wIndex, endIndex: wIndex });
+                        setToastPrompt(null);
+                    },
+                    onCancel: () => {
+                        setToastPrompt(null);
+                    }
+                });
+                return;
+            }
+            setRecordingSelection(prev => ({ ...prev, startIndex: wIndex }));
+            return;
+        }
+
+        // 6. Invalid non-adjacent click
+        triggerShake(`${sIndex}-${wIndex}`);
+    };
+
+    // Dynamic extraction of the contiguous selected words
+    const selectedSentenceText = (() => {
+        if (!recordingSelection || !article?.sentences) return "";
+        const sentenceObj = article.sentences[recordingSelection.sentenceIndex];
+        if (!sentenceObj?.spanish) return "";
+        const words = sentenceObj.spanish.split(' ');
+        return words.slice(recordingSelection.startIndex, recordingSelection.endIndex + 1).join(' ');
+    })();
+
+    const selectedWordsCount = recordingSelection
+        ? recordingSelection.endIndex - recordingSelection.startIndex + 1
+        : 0;
+
+    const handleSaveRecordedSentence = async () => {
+        if (!recordingSelection || !selectedSentenceText.trim()) return;
+
+        const cleanSentence = selectedSentenceText.trim();
+
+        if (savedWords.has(cleanSentence)) {
+            setToastMessage("This sentence is already saved in your session!");
+            setTimeout(() => setToastMessage(null), 2500);
+            return;
+        }
+
+        try {
+            await toggleSavedWord(cleanSentence, {
+                translation: "",
+                source: `Library (${article?.title || 'Story'})`
+            });
+
+            setToastMessage(`Sentence saved! ${sessionWords.length + 1} added in this session`);
+            setTimeout(() => setToastMessage(null), 2500);
+
+            // Reset selection so user can immediately record another sentence or exit
+            setRecordingSelection(null);
+            setIsRecordingSentence(null);
+        } catch (error) {
+            console.error("Error saving sentence:", error);
+            alert("Could not save sentence. Please try again.");
+        }
+    };
+
     // --- Component Renders ---
-    const renderedContent = (article.sentences || []).map((sentenceObj, sIndex) => (
-        <div key={sIndex} className="mb-2">
-            <p className="leading-loose text-gray-700 dark:text-gray-200">
-                {sentenceObj.spanish.split(' ').map((word, wIndex) => {
-                    const cleanedWordMatch = word.toLowerCase().match(/[\p{L}]+/gu);
-                    const cleanedWord = cleanedWordMatch ? cleanedWordMatch[0] : "";
+    const renderedContent = (article.sentences || []).map((sentenceObj, sIndex) => {
+        const rawWords = sentenceObj.spanish.split(' ');
 
-                    const isSessionWord = sessionWords.includes(cleanedWord);
-                    const baseClass = `cursor-pointer rounded transition-colors duration-150 ${isSessionWord ? 'bg-yellow-300 dark:bg-yellow-700 text-gray-900 dark:text-white font-medium hover:bg-yellow-400 dark:hover:bg-yellow-600' : 'hover:bg-yellow-200 dark:hover:bg-yellow-600'}`;
-                    let adminClass = "";
+        // Find all word indices in this sentence that belong to a saved sentence in sessionWords
+        const savedSentenceIndices = new Set();
+        const multiWordEntries = sessionWords.filter(item => item && item.includes(' '));
 
-                    // Check if admin is logged in and if word is missing translation
-                    if (isAdmin && word.length > 0) {
+        multiWordEntries.forEach(phrase => {
+            const phraseWords = phrase.split(' ');
+            const pLen = phraseWords.length;
+            if (pLen === 0) return;
+
+            for (let i = 0; i <= rawWords.length - pLen; i++) {
+                let matches = true;
+                for (let j = 0; j < pLen; j++) {
+                    if (rawWords[i + j] !== phraseWords[j]) {
+                        matches = false;
+                        break;
+                    }
+                }
+                if (matches) {
+                    for (let j = 0; j < pLen; j++) {
+                        savedSentenceIndices.add(i + j);
+                    }
+                }
+            }
+        });
+
+        return (
+            <div key={sIndex} className="mb-2">
+                <p className="leading-loose text-gray-700 dark:text-gray-200">
+                    {rawWords.map((word, wIndex) => {
                         const cleanedWordMatch = word.toLowerCase().match(/[\p{L}]+/gu);
-                        if (cleanedWordMatch) {
-                            const cleanedWord = cleanedWordMatch[0];
-                            if (translations.has(cleanedWord)) {
-                                const transData = translations.get(cleanedWord);
-                                const translation = typeof transData === 'object' ? transData.translation : transData;
+                        const cleanedWord = cleanedWordMatch ? cleanedWordMatch[0] : "";
 
-                                // If no translation is found, apply the admin highlight class
-                                if (!translation || translation === "No translation found") {
-                                    adminClass = "bg-red-200 dark:bg-red-700 opacity-75"; // Highlight missing words
+                        const isSessionWord = sessionWords.includes(cleanedWord) || savedSentenceIndices.has(wIndex);
+                        const baseClass = `cursor-pointer rounded transition-colors duration-150 ${isSessionWord ? 'bg-yellow-300 dark:bg-yellow-700 text-gray-900 dark:text-white font-medium hover:bg-yellow-400 dark:hover:bg-yellow-600' : 'hover:bg-yellow-200 dark:hover:bg-yellow-600'}`;
+                        let adminClass = "";
+
+                        // Check if admin is logged in and if word is missing translation
+                        if (isAdmin && word.length > 0) {
+                            if (cleanedWordMatch) {
+                                if (translations.has(cleanedWord)) {
+                                    const transData = translations.get(cleanedWord);
+                                    const translation = typeof transData === 'object' ? transData.translation : transData;
+
+                                    // If no translation is found, apply the admin highlight class
+                                    if (!translation || translation === "No translation found") {
+                                        adminClass = "bg-red-200 dark:bg-red-700 opacity-75"; // Highlight missing words
+                                    }
                                 }
                             }
                         }
-                    }
-                    return (
-                        <span
-                            key={wIndex}
-                            className={`${baseClass} ${adminClass}`}
-                            onClick={(e) => handleWordClick(e, word, sentenceObj.spanish)}
-                        >
-                            {word}{' '}
-                        </span>
-                    );
-                })}
-            </p>
-            {showTranslations && (
-                <p className="leading-loose text-blue-600 dark:text-blue-400 mt-2 italic pl-10">
-                    &rarr; {sentenceObj.english}
+
+                        const isSelectedInRecording = isRecordingSentence &&
+                            recordingSelection &&
+                            recordingSelection.sentenceIndex === sIndex &&
+                            wIndex >= recordingSelection.startIndex &&
+                            wIndex <= recordingSelection.endIndex;
+
+                        const isShaking = shakingWordKey === `${sIndex}-${wIndex}`;
+
+                        let recordingClass = "";
+                        if (isSelectedInRecording) {
+                            recordingClass = "bg-blue-600 dark:bg-blue-500 text-white font-medium ring-2 ring-blue-400";
+                        } else if (isShaking) {
+                            recordingClass = "animate-shake bg-red-200 dark:bg-red-800 text-red-900 dark:text-red-100 ring-2 ring-red-400";
+                        }
+
+                        return (
+                            <span
+                                key={wIndex}
+                                className={`${baseClass} ${adminClass} ${recordingClass}`}
+                                onClick={(e) => {
+                                    if (isRecordingSentence) {
+                                        handleSentenceWordClick(e, sIndex, wIndex, rawWords);
+                                    } else {
+                                        handleWordClick(e, word, sentenceObj.spanish);
+                                    }
+                                }}
+                            >
+                                {word}{' '}
+                            </span>
+                        );
+                    })}
                 </p>
-            )}
-        </div>
-    ));
+                {showTranslations && (
+                    <p className="leading-loose text-blue-600 dark:text-blue-400 mt-2 italic pl-10">
+                        &rarr; {sentenceObj.english}
+                    </p>
+                )}
+            </div>
+        );
+    });
     const renderPopup = () => {
         if (!lookupResult) return null;
 
@@ -600,6 +797,27 @@ const StoryReader = ({ articleId, onComplete }) => {
 
     return (
         <div className="w-full h-full overflow-y-auto pb-32 sm:pb-36 animate-fade-in bg-white dark:bg-gray-900" onClick={closePopup} onScroll={closePopup}>
+            {toastPrompt && (
+                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in max-w-sm w-full px-4">
+                    <div className="bg-gray-900/95 dark:bg-gray-800/95 backdrop-blur-md border border-amber-500/60 text-white p-4 rounded-xl shadow-2xl flex flex-col gap-3">
+                        <p className="text-sm font-medium text-gray-100">{toastPrompt.message}</p>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={toastPrompt.onCancel}
+                                className="px-3 py-1 text-xs font-semibold rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={toastPrompt.onConfirm}
+                                className="px-3 py-1 text-xs font-semibold rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors"
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {toastMessage && (
                 <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
                     <div className="bg-linear-to-r from-blue-500 to-teal-500 text-white px-4 py-2 rounded-lg shadow-lg font-semibold text-sm text-center whitespace-nowrap">
@@ -622,6 +840,22 @@ const StoryReader = ({ articleId, onComplete }) => {
                             setIsTranslationsOn(!isTranslationsOn);
                         }} className={`text-sm px-3 py-1 text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-green-600 transition-colors ` + (isTranslationsOn ? 'bg-green-800' : 'bg-green-500')}>
                             {showTranslations ? 'Hide translations' : 'Show translations'}
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (isRecordingSentence) {
+                                    setIsRecordingSentence(false);
+                                    setRecordingSelection(null);
+                                    setToastPrompt(null);
+                                } else {
+                                    setIsRecordingSentence(true);
+                                    setRecordingSelection(null);
+                                    closePopup();
+                                }
+                            }}
+                            className={`text-sm px-3 py-1 text-white font-semibold rounded transition-colors ${isRecordingSentence ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                        >
+                            {isRecordingSentence ? 'Cancel Recording' : 'Record Sentence'}
                         </button>
                     </div>
                     {isAdmin && (
@@ -666,61 +900,102 @@ const StoryReader = ({ articleId, onComplete }) => {
                 className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center gap-2 sm:gap-3 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-full shadow-xl border border-gray-200/90 dark:border-gray-700/90 transition-all">
-                    {lookupResult?.sentence ? (
-                        <button
-                            onClick={() => handleSpeak(lookupResult.sentence, playbackRate)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-full shadow-sm hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 text-xs font-bold focus:outline-none shrink-0"
-                            title="Play Selected Sentence"
-                        >
-                            <CiPlay1 className="text-sm sm:text-base" />
-                            <span>Sentence</span>
-                        </button>
-                    ) : (
-                        <button
-                            disabled
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200/60 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 rounded-full text-xs font-semibold cursor-not-allowed focus:outline-none shrink-0"
-                            title="Click any word to play its sentence"
-                        >
-                            <CiPlay1 className="text-sm sm:text-base" />
-                            <span>Sentence</span>
-                        </button>
-                    )}
+                {isRecordingSentence ? (
+                    <div className="flex items-center gap-2 sm:gap-3 px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-full shadow-2xl border border-blue-500/60 dark:border-blue-400/60 transition-all max-w-[95vw] sm:max-w-md w-max">
+                        <div className="flex-1 min-w-0 pr-1">
+                            {recordingSelection ? (
+                                <p className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-100 truncate max-w-44 sm:max-w-60">
+                                    &ldquo;{selectedSentenceText}&rdquo;
+                                    <span className="ml-1.5 text-[11px] text-gray-500 dark:text-gray-400 font-normal">
+                                        ({selectedWordsCount} {selectedWordsCount === 1 ? 'word' : 'words'})
+                                    </span>
+                                </p>
+                            ) : (
+                                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 italic">
+                                    Click adjacent words to select...
+                                </p>
+                            )}
+                        </div>
 
-                    {/* Vertical Divider */}
-                    <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+                        {recordingSelection && (
+                            <button
+                                onClick={() => setRecordingSelection(null)}
+                                className="text-xs font-semibold px-2 py-1 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0"
+                                title="Clear current selection"
+                            >
+                                Clear
+                            </button>
+                        )}
 
-                    <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-                        {/* Speed Toggle Button */}
                         <button
-                            onClick={togglePlaybackRate}
-                            className="flex items-center justify-center min-w-7 h-7 sm:min-w-8 sm:h-8 px-1.5 shrink-0 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-[11px] sm:text-xs transition-transform transform hover:scale-105 active:scale-95 focus:outline-none"
-                            title="Adjust Reading Speed"
-                        >
-                            {playbackRate === 0.9 ? '.90x' : `${playbackRate}x`}
-                        </button>
-                        {/* Full Story Play/Pause */}
-                        <button
-                            onClick={handlePlayPauseFullStory}
-                            className="text-2xl sm:text-[26px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-transform transform hover:scale-110 active:scale-95 focus:outline-none flex items-center justify-center shrink-0"
-                            title={playingState.text === fullStoryText && !isPaused ? "Pause Story" : "Play Story"}
-                        >
-                            {playingState.text === fullStoryText && !isPaused ? <FaRegPauseCircle /> : <FaPlayCircle />}
-                        </button>
-                        {/* Full Story Stop */}
-                        <button
-                            onClick={handleStopFullStory}
-                            disabled={playingState.text !== fullStoryText}
-                            className={`text-2xl sm:text-[26px] transition-transform focus:outline-none flex items-center justify-center shrink-0 ${playingState.text === fullStoryText
-                                ? 'text-red-500 hover:text-red-600 hover:scale-110 active:scale-95 cursor-pointer'
-                                : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                            onClick={handleSaveRecordedSentence}
+                            disabled={!recordingSelection}
+                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm shrink-0 ${recordingSelection
+                                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white transform hover:scale-105 active:scale-95 cursor-pointer shadow-emerald-500/20'
+                                    : 'bg-gray-200/80 dark:bg-gray-700/60 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                 }`}
-                            title="Stop Story"
+                            title={recordingSelection ? "Save this sentence to your review session" : "Select words first to save"}
                         >
-                            <FaStopCircle />
+                            <span>Save Sentence</span>
                         </button>
                     </div>
-                </div>
+                ) : (
+                    <div className="flex items-center gap-2 sm:gap-3 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-full shadow-xl border border-gray-200/90 dark:border-gray-700/90 transition-all">
+                        {lookupResult?.sentence ? (
+                            <button
+                                onClick={() => handleSpeak(lookupResult.sentence, playbackRate)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-full shadow-sm hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 text-xs font-bold focus:outline-none shrink-0"
+                                title="Play Selected Sentence"
+                            >
+                                <CiPlay1 className="text-sm sm:text-base" />
+                                <span>Sentence</span>
+                            </button>
+                        ) : (
+                            <button
+                                disabled
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200/60 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 rounded-full text-xs font-semibold cursor-not-allowed focus:outline-none shrink-0"
+                                title="Click any word to play its sentence"
+                            >
+                                <CiPlay1 className="text-sm sm:text-base" />
+                                <span>Sentence</span>
+                            </button>
+                        )}
+
+                        {/* Vertical Divider */}
+                        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+
+                        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                            {/* Speed Toggle Button */}
+                            <button
+                                onClick={togglePlaybackRate}
+                                className="flex items-center justify-center min-w-7 h-7 sm:min-w-8 sm:h-8 px-1.5 shrink-0 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-[11px] sm:text-xs transition-transform transform hover:scale-105 active:scale-95 focus:outline-none"
+                                title="Adjust Reading Speed"
+                            >
+                                {playbackRate === 0.9 ? '.90x' : `${playbackRate}x`}
+                            </button>
+                            {/* Full Story Play/Pause */}
+                            <button
+                                onClick={handlePlayPauseFullStory}
+                                className="text-2xl sm:text-[26px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-transform transform hover:scale-110 active:scale-95 focus:outline-none flex items-center justify-center shrink-0"
+                                title={playingState.text === fullStoryText && !isPaused ? "Pause Story" : "Play Story"}
+                            >
+                                {playingState.text === fullStoryText && !isPaused ? <FaRegPauseCircle /> : <FaPlayCircle />}
+                            </button>
+                            {/* Full Story Stop */}
+                            <button
+                                onClick={handleStopFullStory}
+                                disabled={playingState.text !== fullStoryText}
+                                className={`text-2xl sm:text-[26px] transition-transform focus:outline-none flex items-center justify-center shrink-0 ${playingState.text === fullStoryText
+                                    ? 'text-red-500 hover:text-red-600 hover:scale-110 active:scale-95 cursor-pointer'
+                                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                                    }`}
+                                title="Stop Story"
+                            >
+                                <FaStopCircle />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Admin Missing Words Drawer */}

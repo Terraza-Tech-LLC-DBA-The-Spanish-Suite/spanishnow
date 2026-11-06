@@ -95,7 +95,7 @@ export default function AIChatPractice({ articleId, targetVocabulary, onComplete
         return (
             <div className="my-2 text-center">
                 <span className="text-sm font-semibold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">
-                    Free Interactions: {interactionCount}/{MAX_FREE_INTERACTIONS}
+                    Free Interactions left: {MAX_FREE_INTERACTIONS - interactionCount}
                 </span>
             </div>
         )
@@ -384,11 +384,10 @@ export default function AIChatPractice({ articleId, targetVocabulary, onComplete
                     <button
                         disabled={isRecording || isAiProcessing}
                         onClick={() => setInputMode('voice')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all duration-200 ${
-                            inputMode === 'voice' 
-                            ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold' 
-                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
-                        }`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all duration-200 ${inputMode === 'voice'
+                                ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
+                            }`}
                     >
                         <FaMicrophone size={14} />
                         <span className="text-[10px] uppercase tracking-widest">Voice</span>
@@ -396,11 +395,10 @@ export default function AIChatPractice({ articleId, targetVocabulary, onComplete
                     <button
                         disabled={isRecording || isAiProcessing}
                         onClick={() => setInputMode('text')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all duration-200 ${
-                            inputMode === 'text' 
-                            ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold' 
-                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
-                        }`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all duration-200 ${inputMode === 'text'
+                                ? 'bg-white dark:bg-gray-700 shadow-md text-custom-600 dark:text-custom-400 font-bold'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30'
+                            }`}
                     >
                         <FaKeyboard size={14} />
                         <span className="text-[10px] uppercase tracking-widest">Text</span>
@@ -414,11 +412,10 @@ export default function AIChatPractice({ articleId, targetVocabulary, onComplete
                                 onClick={toggleRecording}
                                 onContextMenu={(e) => e.preventDefault()}
                                 style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}
-                                className={`p-5 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 touch-none select-none ${
-                                    isRecording 
-                                        ? 'bg-red-500 text-white animate-pulse ring-8 ring-red-500/20 shadow-red-500/40' 
+                                className={`p-5 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 touch-none select-none ${isRecording
+                                        ? 'bg-red-500 text-white animate-pulse ring-8 ring-red-500/20 shadow-red-500/40'
                                         : 'bg-custom-500 text-white hover:bg-custom-600 shadow-custom-500/40'
-                                }`}
+                                    }`}
                                 aria-label={isRecording ? "Tap to stop recording" : "Tap to start recording"}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -493,9 +490,9 @@ export default function AIChatPractice({ articleId, targetVocabulary, onComplete
                 </button>
             </div>
 
-            <Modal 
-                isOpen={showLimitModal} 
-                onClose={() => setShowLimitModal(false)} 
+            <Modal
+                isOpen={showLimitModal}
+                onClose={() => setShowLimitModal(false)}
                 title="Premium Limit Reached 🔒"
                 footer={
                     <div className="flex gap-2 text-sm sm:text-base">

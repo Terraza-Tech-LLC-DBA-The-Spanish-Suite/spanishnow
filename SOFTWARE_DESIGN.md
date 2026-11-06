@@ -298,3 +298,87 @@ Stores reading materials for the library.
         *   If Free user: triggers `Modal.jsx` explaining the Premium feature with a button navigating to `/#premium`.
         *   If Premium user: triggers loading state, calls `generateWordContext`, and renders the English explanation card and 2 additional example sentence cards with audio TTS triggers.
 
+## 18. Feature: Story Reader Sentence Recording - Selection Rules & Contiguity
+
+**Objective:** Provide an intuitive, strictly contiguous word-selection mechanism inside `StoryReader.jsx` allowing users to select any multi-word phrase or full sentence without breaking sentence boundaries.
+
+**State Model (Component Level):**
+* `recordingSelection`: Object or `null`
+  * `sentenceIndex` (number): Index of the sentence within `article.sentences`.
+  * `startIndex` (number): Word index of the first selected word in the sentence.
+  * `endIndex` (number): Word index of the last selected word in the sentence.
+* `shakingWordKey` (string | null): Key identifier (e.g., `${sIndex}-${wIndex}`) indicating which word is currently running the shake animation.
+
+**Business & Contiguity Logic:**
+1. **Initial Selection:**
+   * If `recordingSelection` is `null`, clicking word `wIndex` in sentence `sIndex` sets:
+     `{ sentenceIndex: sIndex, startIndex: wIndex, endIndex: wIndex }`.
+2. **Expansion (Adjacency in Any Order):**
+   * If `sIndex === recordingSelection.sentenceIndex`:
+     * If `wIndex === recordingSelection.startIndex - 1`: Prepend word (`startIndex = wIndex`).
+     * If `wIndex === recordingSelection.endIndex + 1`: Append word (`endIndex = wIndex`).
+3. **Deselection (Boundary Click & Inner Word Toast Prompt):**
+   * If `startIndex === endIndex === wIndex`: Clicking the sole selected word clears selection (`recordingSelection = null`).
+   * If `wIndex === startIndex`: Clicking the start boundary word deselects it without prompt (`startIndex = startIndex + 1`).
+   * If `wIndex === endIndex`: Clicking the end boundary word deselects it without prompt (`endIndex = endIndex - 1`).
+   * If `startIndex < wIndex < endIndex` (Inner Word): Clicking an interior word shows a confirmation toast:
+     *"Deselecting this word will drop the entire selection. Do you want to continue?"*
+     * If user clicks **Continue**: Drops the entire selection (`recordingSelection = null`).
+     * If user clicks **Cancel**: The entire selection remains intact.
+4. **Punctuation (Comma / Period) Boundary Check via Toast Prompt:**
+   * **Forward expansion (`wIndex === endIndex + 1`):** Checks if the preceding word at `endIndex` ends with a comma (`,`) or period (`.`):
+     * Displays a confirmation toast: *"The selected word crosses punctuation (comma/period). Continuing will drop your previous selection and start a new one here. Do you want to continue?"*
+     * If user clicks **Continue**: Drops previous selection and starts fresh at `wIndex` (`{ sentenceIndex: sIndex, startIndex: wIndex, endIndex: wIndex }`).
+     * If user clicks **Cancel**: Existing selection remains untouched.
+   * **Backward expansion (`wIndex === startIndex - 1`):** Checks if the clicked word `wIndex` ends with a comma (`,`) or period (`.`):
+     * Displays the same confirmation toast.
+     * If user clicks **Continue**: Drops previous selection and starts fresh at `wIndex`.
+     * If user clicks **Cancel**: Existing selection remains untouched.
+5. **Invalid Clicks & Shake Feedback:**
+   * If `sIndex !== recordingSelection.sentenceIndex` OR `wIndex` is not adjacent (`startIndex - 1`, `endIndex + 1`) and not within the selection:
+     * The selection is NOT cleared.
+     * The clicked word triggers a CSS shake animation for 400ms (`shakingWordKey`), providing immediate visual feedback that the click is invalid.
+6. **Exact Preservation:**
+   * The selected text slice is extracted from `sentenceObj.spanish.split(' ').slice(startIndex, endIndex + 1).join(' ')`, preserving all punctuation, capitalization, and accents.
+7. **Prompt Mechanism:**
+   * An interactive toast floating at the top of the viewport with "Continue" and "Cancel" buttons, avoiding blocking native browser alerts.
+
+### Save Selection UI & Review Mode Integration
+
+#### UI Component (`StoryReader.jsx`):
+* **Fixed Bottom Recording Dock:** Rendered at `fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50` whenever `isRecordingSentence` is active.
+* **Non-Intrusive Layout:** Replaces the standard audio playback pill during recording mode to keep the screen uncluttered. It features:
+  1. **Selection Preview:** Live text display of the selected Spanish words with quotation marks and word count.
+  2. **Clear Button:** One-click reset of the selection back to 0 words.
+  3. **Always-Visible Save Button:**
+     - Disabled with low opacity when 0 words are selected.
+     - Highlighted with vibrant green/emerald styling with hover effects once 1+ words are selected.
+
+#### Save Flow (`handleSaveSentence`):
+1. **Text Extraction:**
+   Extracts `sentenceObj.spanish.split(' ').slice(startIndex, endIndex + 1).join(' ')`.
+2. **Translation Resolution:**
+   Sets `translation: ""` (empty string) for recorded sentences and phrases. Analog extraction cannot reliably align word-for-word or clause translations without AI, so leaving it blank avoids inaccurate translations. Users can practice and clarify the meaning with the AI in the subsequent lesson practice phase.
+3. **Store & Review Integration:**
+   * Invokes `toggleSavedWord(cleanSentence, { translation: "", source: `Library (${article.title})` })`.
+   * Automatically updates `activeSession.wordsSavedInSession`, optimistic `savedWordsSet`, `savedWordsList`, and Firestore.
+4. **Post-Save Feedback:**
+   * Displays toast: *"Sentence saved! X added in this session"*.
+   * Resets `recordingSelection = null` so the user can immediately select another sentence or exit recording mode.
+
+### Highlighting Saved Sentences in StoryReader
+
+#### Matching & Detection Logic:
+* In `StoryReader.jsx`, each sentence `sentenceObj.spanish` is split into `rawWords`.
+* A word at index `wIndex` in sentence `sIndex` is considered a session word (`isSessionWord = true`) if:
+  1. **Single-word match:** Its cleaned word string is in `sessionWords`.
+  2. **Sentence/Phrase match:** The word falls within the word-range of any multi-word sentence in `sessionWords` that appears in `sentenceObj.spanish`.
+
+#### Styling:
+* Words matching a saved recorded sentence receive the exact same styling as saved individual words:
+  `bg-yellow-300 dark:bg-yellow-700 text-gray-900 dark:text-white font-medium hover:bg-yellow-400 dark:hover:bg-yellow-600`.
+* While actively selecting in "Record Sentence" mode, the active blue selection ring takes visual precedence over the yellow highlight.
+
+
+
+
